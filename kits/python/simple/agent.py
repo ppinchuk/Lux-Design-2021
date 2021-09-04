@@ -14,11 +14,13 @@ def city_tile_to_build(pos, player, game_state):
     if pos is None or player.city_tile_count >= 5:
         return None
     for dir in [DIRECTIONS.CENTER] + ALL_DIRECTIONS:
-        cell = game_state.map.get_cell_by_pos(pos.translate(dir, 1))
+        new_pos = pos.translate(dir, 1)
+        if game_state.map.is_within_bounds(new_pos):
+            cell = game_state.map.get_cell_by_pos(new_pos)
     # for x_add, y_add in [(1, 0), (0, 1), (-1, 0), (0, -1)]:
     #     cell = game_state.map.get_cell(pos.x+x_add, pos.y+y_add)
-        if not cell.has_resource() and cell.citytile is None:
-            return cell
+            if not cell.has_resource() and cell.citytile is None:
+                return cell
     return None
 
 
