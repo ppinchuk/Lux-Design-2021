@@ -1,7 +1,7 @@
 import math
 from typing import List
 
-from .constants import Constants
+from .constants import Constants, ALL_DIRECTIONS
 
 DIRECTIONS = Constants.DIRECTIONS
 RESOURCE_TYPES = Constants.RESOURCE_TYPES
@@ -19,6 +19,7 @@ class Cell:
         self.resource: Resource = None
         self.citytile = None
         self.road = 0
+
     def has_resource(self):
         return self.resource is not None and self.resource.amount > 0
 
@@ -38,6 +39,9 @@ class GameMap:
 
     def get_cell(self, x, y) -> Cell:
         return self.map[y][x]
+
+    def is_within_bounds(self, pos):
+        return (0 <= pos.x < self.height) and (0 <= pos.x < self.width)
 
     def _setResource(self, r_type, x, y, amount):
         """
@@ -67,6 +71,9 @@ class Position:
     def __eq__(self, pos) -> bool:
         return self.x == pos.x and self.y == pos.y
 
+    def __hash__(self):
+        return hash(self.x) ^ hash(self.y)
+
     def equals(self, pos):
         return self == pos
 
@@ -82,25 +89,34 @@ class Position:
         elif direction == DIRECTIONS.CENTER:
             return Position(self.x, self.y)
 
-    def direction_to(self, target_pos: 'Position') -> DIRECTIONS:
+    def direction_to(self, target_pos: 'Position', pos_to_check=None) -> DIRECTIONS:
         """
         Return closest position to target_pos from this position
         """
-        check_dirs = [
-            DIRECTIONS.NORTH,
-            DIRECTIONS.EAST,
-            DIRECTIONS.SOUTH,
-            DIRECTIONS.WEST,
-        ]
-        closest_dist = self.distance_to(target_pos)
-        closest_dir = DIRECTIONS.CENTER
-        for direction in check_dirs:
-            newpos = self.translate(direction, 1)
-            dist = target_pos.distance_to(newpos)
-            if dist < closest_dist:
-                closest_dir = direction
-                closest_dist = dist
-        return closest_dir
+
+        if self.distance_to(target_pos) == 0:
+            return DIRECTIONS.CENTER
+        # closest_dist = self.distance_to(target_pos)
+        # closest_dir = DIRECTIONS.CENTER
+
+        if pos_to_check is None:
+            pos_to_check = {
+                direction: self.translate(direction, 1)
+                for direction in ALL_DIRECTIONS
+            }
+        # for direction in ALL_DIRECTIONS:
+        #     newpos = self.translate(direction, 1)
+
+        dists = {d: target_pos.distance_to(p) for d, p in pos_to_check.items()}
+        return min(dists, key=dists.get)
+
+        # closest_dir, closest_dist = self.distance_to(target_pos)
+        # for direction, newpos in pos_to_check.items():
+        #     dist = target_pos.distance_to(newpos)
+        #     if dist < closest_dist:
+        #         closest_dir = direction
+        #         closest_dist = dist
+        # return closest_dir
 
     def __str__(self) -> str:
         return f"({self.x}, {self.y})"
