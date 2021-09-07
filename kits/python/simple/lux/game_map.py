@@ -120,6 +120,9 @@ class Position:
     def equals(self, pos):
         return self == pos
 
+    def shift_by(self, x, y) -> 'Position':
+        return Position(self.x + x, self.y + y)
+
     def translate(self, direction, units) -> 'Position':
         if direction == DIRECTIONS.NORTH:
             return Position(self.x, self.y - units)
