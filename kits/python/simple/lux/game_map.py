@@ -71,8 +71,11 @@ class GameMap:
     def get_cell(self, x, y) -> Cell:
         return self.map[y][x]
 
+    def is_loc_within_bounds(self, x, y):
+        return (0 <= x < self.height) and (0 <= y < self.width)
+
     def is_within_bounds(self, pos):
-        return (0 <= pos.x < self.height) and (0 <= pos.x < self.width)
+        return self.is_loc_within_bounds(pos.x, pos.y)
 
     def _setResource(self, r_type, x, y, amount):
         """
