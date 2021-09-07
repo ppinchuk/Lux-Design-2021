@@ -26,13 +26,10 @@ def city_tile_to_build(pos, player, game_state):
 
 # this snippet finds all resources stored on the map and puts them into a list so we can search over them
 def find_resources(game_state):
-    resource_tiles: list[Cell] = []
-    width, height = game_state.map_width, game_state.map_height
-    for y in range(height):
-        for x in range(width):
-            cell = game_state.map.get_cell(x, y)
-            if cell.has_resource():
-                resource_tiles.append(cell)
+    resource_tiles = []
+    for cell in game_state.map.cells():
+        if cell.has_resource():
+            resource_tiles.append(cell)
     return resource_tiles
 
 
