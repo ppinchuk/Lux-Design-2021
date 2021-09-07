@@ -25,8 +25,9 @@ class ResourceCluster:
     def __hash__(self):
         return hash(self._resource_positions.keys())
 
-    def add_resource_position(self, position):
-        self._resource_positions[position] = None
+    def add_resource_positions(self, *positions):
+        for pos in positions:
+            self._resource_positions[pos] = None
 
     def update_resource_amount(self, game_map):
         cells = {
