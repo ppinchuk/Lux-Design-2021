@@ -81,6 +81,18 @@ class GameMap:
         cell = self.get_cell(x, y)
         cell.resource = Resource(r_type, amount)
 
+    def positions(self):
+        """ Iterate over all positions of the map. """
+        for x in range(self.height):
+            for y in range(self.width):
+                yield Position(x, y)
+
+    def cells(self):
+        """ Iterate over all cells of the map. """
+        for x in range(self.height):
+            for y in range(self.width):
+                yield self.get_cell(x, y)
+
 
 class Position:
     def __init__(self, x, y):
