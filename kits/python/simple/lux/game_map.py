@@ -13,6 +13,37 @@ class Resource:
         self.amount = amount
 
 
+class ResourceCluster:
+    def __init__(self, r_type: str):
+        self.type = r_type
+        self._resource_positions = dict()
+        self.total_amount = -1
+
+    def __eq__(self, other) -> bool:
+        return self.resource_positions == other.resource_positions
+
+    def __hash__(self):
+        return hash(self._resource_positions.keys())
+
+    def add_resource_position(self, position):
+        self._resource_positions[position] = None
+
+    def update_resource_amount(self, game_map):
+        cells = {
+            game_map.get_cell_by_pos(p)
+            for p in self._resource_positions.keys()
+            if game_map.is_within_bounds(p)
+
+        }
+        self.total_amount = sum(
+            cell.resource.amount for cell in cells if cell.resource is not None
+        )
+
+    @property
+    def resource_positions(self):
+        return set(self._resource_positions.keys())
+
+
 class Cell:
     def __init__(self, x, y):
         self.pos = Position(x, y)
@@ -72,7 +103,7 @@ class Position:
         return self.x == pos.x and self.y == pos.y
 
     def __hash__(self):
-        return hash(self.x) ^ hash(self.y)
+        return hash((self.x, self.y))
 
     def equals(self, pos):
         return self == pos
