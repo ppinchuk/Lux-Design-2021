@@ -1,4 +1,5 @@
 from typing import Dict
+from collections import deque
 
 from .constants import Constants
 from .game_map import Position
@@ -79,6 +80,22 @@ class Cargo:
 
     def __str__(self) -> str:
         return f"Cargo | Wood: {self.wood}, Coal: {self.coal}, Uranium: {self.uranium}"
+
+
+class ValidActions:
+    MOVE = "move"
+    TRANSFER = "transfer"
+    PILLAGE = "pillage"
+    BUILD = "build"
+
+    @classmethod
+    def for_unit(cls, u_type):
+        if u_type == UNIT_TYPES.WORKER:
+            return {cls.MOVE, cls.TRANSFER, cls.PILLAGE, cls.BUILD}
+        elif u_type == UNIT_TYPES.CART:
+            return {cls.MOVE, cls.TRANSFER}
+        else:
+            return set()
 
 
 class Unit:
