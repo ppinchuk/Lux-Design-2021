@@ -50,14 +50,10 @@ class ResourceCluster:
 
             self.min_loc = (min(x_vals), min(y_vals))
             self.max_loc = (max(x_vals), max(y_vals))
-
-            if len(x_vals) < 2:
-                assert len(y_vals) < 2
-                self.n_to_block = 1
-            else:
-                self.n_to_block = max(
-                    max(x_vals) - min(x_vals), max(y_vals) - min(y_vals)
-                )
+            self.n_to_block = max(
+                max(x_vals) - min(x_vals), max(y_vals) - min(y_vals)
+            ) + 1
+            # print(f"Num to block: {self.n_to_block}", file=sys.stderr)
 
     @property
     def resource_positions(self):
