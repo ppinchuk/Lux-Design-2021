@@ -1,13 +1,43 @@
 from lux.game import Game
 from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position, ResourceCluster
 from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER
-from collections import Counter
+from collections import Counter, UserDict
 import sys
 from lux.game_constants import GAME_CONSTANTS
 from lux import annotate
 import math
 
 ### Define helper functions
+
+
+class MemDict(UserDict):
+    # adapted from https://stackoverflow.com/a/22552713/10615276
+    """ Dictionary that memorizes key-value pairs after retrieving them. """
+
+    def __call__(self, key):
+        return self[key]
+
+    def __missing__(self, key):
+        result = self[key] = self.get_value(key)
+        return result
+
+    @staticmethod
+    def get_value(key):
+        raise NotImplementedError
+
+
+class PositionToCluster(MemDict):
+    @staticmethod
+    def get_value(pos):
+        if LogicGlobals.clusters is None:
+            raise ValueError("No clusters found!")
+        for cluster in LogicGlobals.clusters:
+            if pos in cluster.resource_positions:
+                return cluster
+        return None
+
+
+POSITION_TO_CLUSTER = PositionToCluster()
 
 
 def city_tile_to_build(pos, player, game_state):
