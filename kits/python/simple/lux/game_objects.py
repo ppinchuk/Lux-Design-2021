@@ -142,10 +142,14 @@ class Unit:
         """
         return the command to build a city right under the worker
         """
+        if self.is_cart():
+            raise ValueError(f"Unit {self.id} is a cart; cannot build a city!")
         return "bcity {}".format(self.id)
 
     def pillage(self) -> str:
         """
         return the command to pillage whatever is underneath the worker
         """
+        if self.is_cart():
+            raise ValueError(f"Unit {self.id} is a cart; cannot pillage!")
         return "p {}".format(self.id)
