@@ -88,10 +88,7 @@ class Unit:
         self.id = unitid
         self.type = u_type
         self.cooldown = cooldown
-        self.cargo = Cargo()
-        self.cargo.wood = wood
-        self.cargo.coal = coal
-        self.cargo.uranium = uranium
+        self.cargo = Cargo(wood, coal, uranium)
 
     def is_worker(self) -> bool:
         return self.type == UNIT_TYPES.WORKER
