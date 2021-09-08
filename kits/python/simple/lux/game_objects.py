@@ -113,8 +113,10 @@ class Unit:
         """
         whether or not the unit can build where it is right now
         """
+        if self.is_cart():
+            return False
         cell = game_map.get_cell_by_pos(self.pos)
-        if not cell.has_resource() and self.can_act() and (self.cargo.wood + self.cargo.coal + self.cargo.uranium) >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
+        if not cell.has_resource() and cell.citytile is None and self.can_act() and (self.cargo.wood + self.cargo.coal + self.cargo.uranium) >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
             return True
         return False
 
