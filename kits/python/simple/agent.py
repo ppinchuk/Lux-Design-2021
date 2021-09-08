@@ -246,13 +246,13 @@ def agent(observation, configuration):
     )
     actions.append(
         annotate.sidetext(
-            "Cluster - N_resource_n_defend",
+            "Cluster - N_resource - N_defend",
         )
     )
     for cluster in LogicGlobals.clusters:
         actions.append(
             annotate.sidetext(
-                f"[{cluster.min_loc[0]}; {cluster.min_loc[1]}] - {cluster.total_amount} - {cluster.n_to_block}",
+                f"[{cluster.min_loc[0]:2d}; {cluster.min_loc[1]:2d}] - {cluster.total_amount:4d} - {cluster.n_to_block:1d}",
             )
         )
         for pos in cluster.resource_positions:
