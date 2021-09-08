@@ -19,7 +19,7 @@ class ResourceCluster:
         self.type = r_type
         self._resource_positions = dict()
         self.total_amount = -1
-        self.n_to_block = 0
+        self.pos_to_defend = []
         self.min_loc = None
         self.max_loc = None
 
@@ -44,16 +44,42 @@ class ResourceCluster:
             cell.resource.amount for cell in cells if cell.resource is not None
         )
 
-        if self.n_to_block == 0:
+        if not self.pos_to_defend:
             x_vals = [p.x for p in self._resource_positions.keys()]
             y_vals = [p.y for p in self._resource_positions.keys()]
 
             self.min_loc = (min(x_vals), min(y_vals))
             self.max_loc = (max(x_vals), max(y_vals))
-            self.n_to_block = max(
-                max(x_vals) - min(x_vals), max(y_vals) - min(y_vals)
-            ) + 1
-            # print(f"Num to block: {self.n_to_block}", file=sys.stderr)
+
+            self.pos_to_defend += [
+                Position(x, self.min_loc[1] - 1)
+                for x in range(self.min_loc[0], self.max_loc[0] + 1)
+                if game_map.is_loc_within_bounds(x, self.min_loc[1] - 1)
+            ]
+
+            self.pos_to_defend += [
+                Position(x, self.max_loc[1] + 1)
+                for x in range(self.min_loc[0], self.max_loc[0] + 1)
+                if game_map.is_loc_within_bounds(x, self.max_loc[1] + 1)
+            ]
+
+            self.pos_to_defend += [
+                Position(self.min_loc[0] - 1, y)
+                for y in range(self.min_loc[1], self.max_loc[1] + 1)
+                if game_map.is_loc_within_bounds(self.min_loc[0] - 1, y)
+            ]
+
+            self.pos_to_defend += [
+                Position(self.max_loc[0] + 1, y)
+                for y in range(self.min_loc[1], self.max_loc[1] + 1)
+                if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
+            ]
+
+            print(f"Num to block: {self.n_to_block}", file=sys.stderr)
+
+    @property
+    def n_to_block(self):
+        return len(self.pos_to_defend)
 
     @property
     def resource_positions(self):
