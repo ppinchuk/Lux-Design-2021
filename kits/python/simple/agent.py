@@ -1,5 +1,5 @@
 from lux.game import Game
-from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position
+from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position, ResourceCluster
 from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER
 from collections import Counter
 import sys
@@ -63,11 +63,37 @@ def find_closest_city_tile(pos, player):
     return closest_city_tile
 
 
-game_state = None
-main_base_city_tile = None
+def _check_for_cluster(game_map, position, resource_set, resource_type):
+    for step in ((-1, 1), (0, 1), (1, 1), (1, 0), (1, -1)):
+        new_position = position.shift_by(*step)
+        if game_map.is_within_bounds(new_position) and new_position not in resource_set:
+            new_cell = game_map.get_cell_by_pos(new_position)
+            if new_cell.resource is not None and new_cell.resource.type == resource_type:
+                resource_set.add(new_position)
+                _check_for_cluster(game_map, new_position, resource_set, resource_type)
+
+    return resource_set
 
 
-def decide_unit_action(unit, player, resource_tiles, pos_units_will_move_to):
+def find_clusters(game_state):
+    resource_pos_found = set()
+    resource_clusters = []
+    for cell in game_state.map.cells():
+        if cell.has_resource() and cell.pos not in resource_pos_found:
+            new_cluster_pos = _check_for_cluster(game_state.map, cell.pos, {cell.pos}, cell.resource.type)
+            resource_pos_found = resource_pos_found & new_cluster_pos
+            new_cluster = ResourceCluster(cell.resource.type)
+            new_cluster.add_resource_positions(*new_cluster_pos)
+            resource_clusters.append(new_cluster)
+
+    return resource_clusters
+
+
+# if our cluster is separate from other base, build around them.
+# Prefer 2x2 clusters
+
+
+def decide_unit_action(unit, player, game_state, resource_tiles, pos_units_will_move_to):
     if unit.is_worker() and unit.can_act():
         # we want to mine only if there is space left in the worker's cargo
         if unit.get_cargo_space_left() > 0:
@@ -86,7 +112,7 @@ def decide_unit_action(unit, player, resource_tiles, pos_units_will_move_to):
                 if dir_to_move != DIRECTIONS.CENTER:
                     return 'move', dir_to_move, unit.pos.translate(dir_to_move, 1)
         else:
-            new_city = city_tile_to_build(main_base_city_tile.pos, player, game_state)
+            new_city = city_tile_to_build(LogicGlobals.main_base_city_tile.pos, player, game_state)
             if new_city is not None:
                 # print(f"New city is at:", new_city.pos, file=sys.stderr)
                 if unit.pos != new_city.pos:
@@ -112,37 +138,42 @@ def decide_unit_action(unit, player, resource_tiles, pos_units_will_move_to):
     return None, None, None
 
 
+class LogicGlobals:
+    game_state = Game()
+    main_base_city_tile = None
+    clusters = None
+
+
 def agent(observation, configuration):
-    global game_state, main_base_city_tile
+    # global game_state, main_base_city_tile
 
     ### Do not edit ###
     if observation["step"] == 0:
-        game_state = Game()
-        game_state._initialize(observation["updates"])
-        game_state._update(observation["updates"][2:])
-        game_state.id = observation.player
+        # LogicGlobals.game_state = Game()
+        LogicGlobals.game_state._initialize(observation["updates"])
+        LogicGlobals.game_state._update(observation["updates"][2:])
+        LogicGlobals.game_state.id = observation.player
     else:
-        game_state._update(observation["updates"])
+        LogicGlobals.game_state._update(observation["updates"])
 
     ### AI Code goes down here! ###
-    player = game_state.players[observation.player]
-    opponent = game_state.players[(observation.player + 1) % 2]
-    width, height = game_state.map.width, game_state.map.height
+    player = LogicGlobals.game_state.players[observation.player]
+    opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
+    width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
 
-    if main_base_city_tile is None:
-        main_base_city_tile = find_closest_city_tile(Position(0, 0), player)
-    # print(f"Base city is:", main_base_city_tile, file=sys.stderr)
+    if LogicGlobals.main_base_city_tile is None:
+        LogicGlobals.main_base_city_tile = find_closest_city_tile(Position(0, 0), player)
     # if main_base_city_tile is not None:
     #     print(f"Base city is at:", main_base_city_tile.pos, file=sys.stderr)
 
-    resource_tiles = find_resources(game_state)
+    resource_tiles = find_resources(LogicGlobals.game_state)
     actions = []
     # pos_units_will_move_to = set(unit.pos for unit in player.units)
     proposed_unit_locations = {}
 
     for unit in player.units:
         action, direction, new_pos = decide_unit_action(
-            unit, player, resource_tiles, set(v[1] for v in proposed_unit_locations.values())
+            unit, player, LogicGlobals.game_state, resource_tiles, set(v[1] for v in proposed_unit_locations.values())
         )
         if action == 'move':
             proposed_unit_locations[unit.id] = (direction, new_pos)
@@ -155,7 +186,7 @@ def agent(observation, configuration):
         unit = [u for u in player.units if u.id == unit_id][0]
         if pos in duplicate_pos and pos in fixed_pos:
             action, direction, new_pos = decide_unit_action(
-                unit, player, resource_tiles, set(v[1] for v in proposed_unit_locations.values())
+                unit, player, LogicGlobals.game_state, resource_tiles, set(v[1] for v in proposed_unit_locations.values())
             )
             if action == 'move':
                 actions.append(unit.move(direction))
@@ -164,49 +195,6 @@ def agent(observation, configuration):
         else:
             actions.append(unit.move(direction))
 
-
-        # # if the unit is a worker (can mine resources) and can perform an action this turn
-        # if unit.is_worker() and unit.can_act():
-        #     # we want to mine only if there is space left in the worker's cargo
-        #     if unit.get_cargo_space_left() > 0:
-        #         # find the closest resource if it exists to this unit
-        #         closest_resource_tile = find_closest_resources(unit.pos, player, resource_tiles)
-        #         if closest_resource_tile is not None and closest_resource_tile.pos != unit.pos:
-        #             # create a move action to move this unit in the direction of the closest resource tile and add to our actions list
-        #             # TODO: Make sure two workers do not move onto the same time
-        #             pos_to_check = {}
-        #             for direction in ALL_DIRECTIONS:
-        #                 new_pos = unit.pos.translate(direction, 1)
-        #                 if not game_state.map.is_within_bounds(new_pos) or new_pos in pos_units_will_move_to:
-        #                     continue
-        #                 pos_to_check[direction] = new_pos
-        #             dir_to_move = unit.pos.direction_to(closest_resource_tile.pos, pos_to_check=pos_to_check)
-        #             if dir_to_move != DIRECTIONS.CENTER:
-        #                 pos_units_will_move_to.add(pos_to_check[dir_to_move])
-        #                 actions.append(unit.move(dir_to_move))
-        #     else:
-        #         new_city = city_tile_to_build(main_base_city_tile.pos, player, game_state)
-        #         if new_city is not None:
-        #             # print(f"New city is at:", new_city.pos, file=sys.stderr)
-        #             if unit.pos != new_city.pos:
-        #                 pos_to_check = {}
-        #                 for direction in ALL_DIRECTIONS:
-        #                     new_pos = unit.pos.translate(direction, 1)
-        #                     if not game_state.map.is_within_bounds(new_pos):
-        #                         continue
-        #                     new_pos_cell = game_state.map.get_cell_by_pos(new_pos)
-        #                     if new_pos_cell.citytile is None:
-        #                         pos_to_check[direction] = new_pos
-        #                 actions.append(unit.move(unit.pos.direction_to(new_city.pos, pos_to_check=pos_to_check)))
-        #             else:
-        #                 actions.append(unit.build_city())
-        #         else:
-        #             # find the closest citytile and move the unit towards it to drop resources to a citytile to fuel the city
-        #             closest_city_tile = find_closest_city_tile(unit.pos, player)
-        #             if closest_city_tile is not None:
-        #                 # create a move action to move this unit in the direction of the closest resource tile and add to our actions list
-        #                 actions.append(unit.move(unit.pos.direction_to(closest_city_tile.pos)))
-
     for _, city in player.cities.items():
         for city_tile in city.citytiles:
             if city_tile.can_act():
@@ -214,6 +202,13 @@ def agent(observation, configuration):
                     actions.append(city_tile.build_worker())
                 else:
                     actions.append(city_tile.research())
+
+    if LogicGlobals.game_state.turn == 0:
+        LogicGlobals.clusters = find_clusters(LogicGlobals.game_state)
+
+    for cluster in LogicGlobals.clusters:
+        for pos in cluster.resource_positions:
+            actions.append(annotate.circle(pos.x, pos.y))
 
     return actions
 
