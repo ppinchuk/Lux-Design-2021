@@ -72,10 +72,10 @@ class CityTile:
 
 
 class Cargo:
-    def __init__(self):
-        self.wood = 0
-        self.coal = 0
-        self.uranium = 0
+    def __init__(self, wood=0, coal=0, uranium=0):
+        self.wood = wood
+        self.coal = coal
+        self.uranium = uranium
 
     def __str__(self) -> str:
         return f"Cargo | Wood: {self.wood}, Coal: {self.coal}, Uranium: {self.uranium}"
