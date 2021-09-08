@@ -100,11 +100,11 @@ class Unit:
         """
         get cargo space left in this unit
         """
-        spaceused = self.cargo.wood + self.cargo.coal + self.cargo.uranium
+        space_used = self.cargo.wood + self.cargo.coal + self.cargo.uranium
         if self.type == UNIT_TYPES.WORKER:
-            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"] - spaceused
+            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"] - space_used
         else:
-            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["CART"] - spaceused
+            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["CART"] - space_used
     
     def can_build(self, game_map) -> bool:
         """
