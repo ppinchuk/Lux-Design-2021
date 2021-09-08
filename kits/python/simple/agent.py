@@ -81,7 +81,7 @@ def find_clusters(game_state):
     for cell in game_state.map.cells():
         if cell.has_resource() and cell.pos not in resource_pos_found:
             new_cluster_pos = _check_for_cluster(game_state.map, cell.pos, {cell.pos}, cell.resource.type)
-            resource_pos_found = resource_pos_found & new_cluster_pos
+            resource_pos_found = resource_pos_found | new_cluster_pos
             new_cluster = ResourceCluster(cell.resource.type)
             new_cluster.add_resource_positions(*new_cluster_pos)
             resource_clusters.append(new_cluster)
@@ -156,6 +156,12 @@ def agent(observation, configuration):
     else:
         LogicGlobals.game_state._update(observation["updates"])
 
+    if LogicGlobals.game_state.turn == 0:
+        LogicGlobals.clusters = find_clusters(LogicGlobals.game_state)
+
+    for c in LogicGlobals.clusters:
+        c.update_state(game_map=LogicGlobals.game_state.map)
+
     ### AI Code goes down here! ###
     player = LogicGlobals.game_state.players[observation.player]
     opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
@@ -203,12 +209,26 @@ def agent(observation, configuration):
                 else:
                     actions.append(city_tile.research())
 
-    if LogicGlobals.game_state.turn == 0:
-        LogicGlobals.clusters = find_clusters(LogicGlobals.game_state)
-
+    actions.append(
+        annotate.sidetext(
+            f"Found {len(LogicGlobals.clusters)} clusters",
+        )
+    )
+    actions.append(
+        annotate.sidetext(
+            "Cluster - N_resource_n_defend",
+        )
+    )
     for cluster in LogicGlobals.clusters:
+        actions.append(
+            annotate.sidetext(
+                f"[{cluster.min_loc[0]}; {cluster.min_loc[1]}] - {cluster.total_amount} - {cluster.n_to_block}",
+            )
+        )
         for pos in cluster.resource_positions:
             actions.append(annotate.circle(pos.x, pos.y))
+
+    actions.append(annotate.text(15, 15, "Some message to convey"))
 
     return actions
 
