@@ -31,11 +31,12 @@ class ValidActions:
     TRANSFER = "transfer"
     PILLAGE = "pillage"
     BUILD = "build"
+    COLLECT = "collect"
 
     @classmethod
     def for_unit(cls, u_type):
         if u_type == Constants.UNIT_TYPES.WORKER:
-            return {cls.MOVE, cls.TRANSFER, cls.PILLAGE, cls.BUILD}
+            return {cls.MOVE, cls.TRANSFER, cls.PILLAGE, cls.BUILD, cls.COLLECT}
         elif u_type == Constants.UNIT_TYPES.CART:
             return {cls.MOVE, cls.TRANSFER}
         else:
