@@ -1,5 +1,6 @@
 import math
 from typing import List
+import sys
 
 from .constants import Constants, ALL_DIRECTIONS
 
@@ -18,6 +19,9 @@ class ResourceCluster:
         self.type = r_type
         self._resource_positions = dict()
         self.total_amount = -1
+        self.n_to_block = 0
+        self.min_loc = None
+        self.max_loc = None
 
     def __eq__(self, other) -> bool:
         return self.resource_positions == other.resource_positions
@@ -29,7 +33,7 @@ class ResourceCluster:
         for pos in positions:
             self._resource_positions[pos] = None
 
-    def update_resource_amount(self, game_map):
+    def update_state(self, game_map):
         cells = {
             game_map.get_cell_by_pos(p)
             for p in self._resource_positions.keys()
@@ -39,6 +43,21 @@ class ResourceCluster:
         self.total_amount = sum(
             cell.resource.amount for cell in cells if cell.resource is not None
         )
+
+        if self.n_to_block == 0:
+            x_vals = [p.x for p in self._resource_positions.keys()]
+            y_vals = [p.y for p in self._resource_positions.keys()]
+
+            self.min_loc = (min(x_vals), min(y_vals))
+            self.max_loc = (max(x_vals), max(y_vals))
+
+            if len(x_vals) < 2:
+                assert len(y_vals) < 2
+                self.n_to_block = 1
+            else:
+                self.n_to_block = max(
+                    max(x_vals) - min(x_vals), max(y_vals) - min(y_vals)
+                )
 
     @property
     def resource_positions(self):
