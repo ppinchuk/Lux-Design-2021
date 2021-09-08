@@ -94,7 +94,7 @@ def find_closest_city_tile(pos, player):
 
 
 def _check_for_cluster(game_map, position, resource_set, resource_type):
-    for step in ((-1, 1), (0, 1), (1, 1), (1, 0), (1, -1)):
+    for step in ((-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)):
         new_position = position.shift_by(*step)
         if game_map.is_within_bounds(new_position) and new_position not in resource_set:
             new_cell = game_map.get_cell_by_pos(new_position)
@@ -257,6 +257,8 @@ def agent(observation, configuration):
         )
         for pos in cluster.resource_positions:
             actions.append(annotate.circle(pos.x, pos.y))
+        for pos in cluster.pos_to_defend:
+            actions.append(annotate.x(pos.x, pos.y))
 
     actions.append(annotate.text(15, 15, "Some message to convey"))
 
