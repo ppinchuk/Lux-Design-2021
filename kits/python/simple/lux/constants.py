@@ -42,6 +42,10 @@ class ValidActions:
         else:
             return set()
 
+    @classmethod
+    def can_be_adjacent(cls):
+        return {cls.TRANSFER, cls.COLLECT}
+
 
 ALL_DIRECTIONS = [
     Constants.DIRECTIONS.NORTH, Constants.DIRECTIONS.EAST,
