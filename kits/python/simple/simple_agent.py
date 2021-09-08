@@ -78,7 +78,7 @@ def agent(observation, configuration):
         # if the unit is a worker (can mine resources) and can perform an action this turn
         if unit.is_worker() and unit.can_act():
             # we want to mine only if there is space left in the worker's cargo
-            if unit.get_cargo_space_left() > 0:
+            if unit.cargo_space_left() > 0:
                 # find the closest resource if it exists to this unit
                 closest_resource_tile = find_closest_resources(unit.pos, player, resource_tiles)
                 if closest_resource_tile is not None:
