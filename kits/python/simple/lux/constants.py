@@ -26,6 +26,22 @@ class Constants:
         COAL = "coal"
 
 
+class ValidActions:
+    MOVE = "move"
+    TRANSFER = "transfer"
+    PILLAGE = "pillage"
+    BUILD = "build"
+
+    @classmethod
+    def for_unit(cls, u_type):
+        if u_type == Constants.UNIT_TYPES.WORKER:
+            return {cls.MOVE, cls.TRANSFER, cls.PILLAGE, cls.BUILD}
+        elif u_type == Constants.UNIT_TYPES.CART:
+            return {cls.MOVE, cls.TRANSFER}
+        else:
+            return set()
+
+
 ALL_DIRECTIONS = [
     Constants.DIRECTIONS.NORTH, Constants.DIRECTIONS.EAST,
     Constants.DIRECTIONS.SOUTH, Constants.DIRECTIONS.WEST
