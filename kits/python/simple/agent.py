@@ -56,21 +56,6 @@ def city_tile_to_build(pos, player):
     return None
 
 
-def find_closest_city_tile(pos, player):
-    closest_city_tile = None
-    if len(player.cities) > 0:
-        closest_dist = math.inf
-        # the cities are stored as a dictionary mapping city id to the city object, which has a citytiles field that
-        # contains the information of all citytiles in that city
-        for k, city in player.cities.items():
-            for city_tile in city.citytiles:
-                dist = city_tile.pos.distance_to(pos)
-                if dist < closest_dist:
-                    closest_dist = dist
-                    closest_city_tile = city_tile
-    return closest_city_tile
-
-
 def _check_for_cluster(game_map, position, resource_set, resource_type):
     for step in ((-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)):
         new_position = position.shift_by(*step)
@@ -148,7 +133,7 @@ def agent(observation, configuration):
     if LogicGlobals.game_state.turn == 0:
         LogicGlobals.clusters = find_clusters(LogicGlobals.game_state)
         if LogicGlobals.start_tile is None:
-            LogicGlobals.start_tile = find_closest_city_tile(Position(0, 0), player)
+            LogicGlobals.start_tile = Position(0, 0).find_closest_city_tile(player, LogicGlobals.game_state.map)
 
     LogicGlobals.unlocked_coal = player.researched_coal()
     LogicGlobals.unlocked_uranium = player.researched_uranium()

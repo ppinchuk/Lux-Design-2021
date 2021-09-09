@@ -160,6 +160,7 @@ class Position:
         self.x = x
         self.y = y
         self._closest_resource_pos = None
+        self._closest_city_pos = None
 
     def __sub__(self, pos) -> int:
         return abs(pos.x - self.x) + abs(pos.y - self.y)
@@ -207,6 +208,18 @@ class Position:
             return Position(self.x - units, self.y)
         elif direction == DIRECTIONS.CENTER:
             return Position(self.x, self.y)
+
+    def find_closest_city_tile(self, player, game_map):
+        if self._closest_city_pos is None or game_map.get_cell_by_pos(self._closest_city_pos).citytile is None:
+            if len(player.cities) > 0:
+                closest_dist = math.inf
+                for k, city in player.cities.items():
+                    for city_tile in city.citytiles:
+                        dist = city_tile.pos.distance_to(self)
+                        if dist < closest_dist:
+                            closest_dist = dist
+                            self._closest_city_pos = city_tile.pos
+        return self._closest_city_pos
 
     def find_closest_resource(self, player, game_map, prefer_unlocked_resources=False):
         """
