@@ -45,11 +45,15 @@ POSITION_TO_CLUSTER = PositionToCluster()
 def city_tile_to_build(pos, game_state):
     if pos is None:
         return None
-    resource_pos = find_closest_resources(pos, prefer_upgrades=True)
-    resource_cluster = POSITION_TO_CLUSTER[resource_pos.pos]
-    for pos in resource_cluster.pos_to_defend:
+    if LogicGlobals.resource_cluster_to_defend is None:
+        resource_pos = find_closest_resources(pos, prefer_upgrades=True)
+        # print(f"Resource position: {resource_pos.pos}", file=sys.stderr)
+        LogicGlobals.resource_cluster_to_defend = POSITION_TO_CLUSTER[resource_pos.pos]
+        # print(f"Resource cluster pos to defend: {resource_cluster.pos_to_defend}", file=sys.stderr)
+
+    for pos in LogicGlobals.resource_cluster_to_defend.pos_to_defend:
         cell = game_state.map.get_cell_by_pos(pos)
-        if cell.citytile is None:
+        if cell.citytile is None and pos not in LogicGlobals.pos_being_built:
             return cell.pos
     return None
 
@@ -139,6 +143,7 @@ def set_unit_task(unit, game_state):
     new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, game_state)
     if new_city_pos is not None:
         unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
+        LogicGlobals.pos_being_built.add(new_city_pos)
 
     # if unit.is_worker():
     #     # TODO: Update plan to move off of first city tile
@@ -162,6 +167,9 @@ def set_unit_task(unit, game_state):
     #             # TODO: Else, do something here!!
 
 
+BEING_BUILT_BY = {}
+
+
 class LogicGlobals:
     game_state = Game()
     start_tile = None
@@ -169,6 +177,8 @@ class LogicGlobals:
     resource_tiles = None
     unlocked_coal = False
     unlocked_uranium = False
+    pos_being_built = set()
+    resource_cluster_to_defend = None
 
 
 def agent(observation, configuration):
@@ -199,25 +209,32 @@ def agent(observation, configuration):
     for c in LogicGlobals.clusters:
         c.update_state(game_map=LogicGlobals.game_state.map)
 
+    if LogicGlobals.resource_cluster_to_defend is not None and (all(LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None for p in LogicGlobals.resource_cluster_to_defend.pos_to_defend) or LogicGlobals.resource_cluster_to_defend.total_amount <= 0):
+        LogicGlobals.resource_cluster_to_defend = None
+
     actions = []
     blocked_positions = set()
 
-    # Can block some wood clusters later using this code
-    # for cell in LogicGlobals.game_state.map.cells():
-    #     if cell.has_resource() or cell.citytile is not None:
-    #         blocked_positions.add(cell.pos)
+    # Not sure if this is good or not
+    for cell in LogicGlobals.game_state.map.cells():
+        if cell.has_resource() and cell.resource.type == Constants.RESOURCE_TYPES.WOOD:
+            if cell.resource.amount < 500:
+                blocked_positions = blocked_positions | cell.pos.adjacent_positions()
+            else:
+                blocked_positions = blocked_positions - cell.pos.adjacent_positions()
 
     for unit in opponent.units:
-        blocked_positions.add(unit.pos)
         # TODO: This may cause issues in the endgame
-        blocked_positions.add(unit.pos.translate(DIRECTIONS.NORTH, 1))
-        blocked_positions.add(unit.pos.translate(DIRECTIONS.EAST, 1))
-        blocked_positions.add(unit.pos.translate(DIRECTIONS.WEST, 1))
-        blocked_positions.add(unit.pos.translate(DIRECTIONS.SOUTH, 1))
+        blocked_positions = blocked_positions | unit.pos.adjacent_positions()
 
     for unit in player.units:
         unit.check_for_task_completion(game_map=LogicGlobals.game_state.map)
         blocked_positions.add(unit.pos)
+
+    LogicGlobals.pos_being_built = {
+        u.current_task[1] for u in player.units if
+        u.current_task is not None and u.current_task[0] == ValidActions.BUILD
+    }
 
     for unit in player.units:
         if unit.current_task is None:
@@ -293,10 +310,10 @@ def agent(observation, configuration):
                 f"[{cluster.min_loc[0]:2d}; {cluster.min_loc[1]:2d}] - {cluster.total_amount:4d} - {cluster.n_to_block:1d}",
             )
         )
-        for pos in cluster.resource_positions:
-            actions.append(annotate.circle(pos.x, pos.y))
-        for pos in cluster.pos_to_defend:
-            actions.append(annotate.x(pos.x, pos.y))
+        # for pos in cluster.resource_positions:
+        #     actions.append(annotate.circle(pos.x, pos.y))
+        # for pos in cluster.pos_to_defend:
+        #     actions.append(annotate.x(pos.x, pos.y))
 
     for unit in player.units:
         if unit.current_task is None:
