@@ -1,4 +1,3 @@
-import math
 from typing import List
 import sys
 
@@ -181,33 +180,34 @@ class Position:
             return Position(self.x, self.y)
 
     def direction_to(self, target_pos: 'Position', pos_to_check=None) -> DIRECTIONS:
-        """
-        Return closest position to target_pos from this position
+        """ Return closest position to target_pos from this position
+
+        Parameters
+        ----------
+        target_pos : Position
+            Target position to move to. Can be more than 1 unit away.
+        pos_to_check : dict
+            Dictionary with keys as directions and values as positions
+            corresponding to a move in that direction.
+
+        Returns
+        -------
+        Direction
+            Direction to move
+
         """
 
         if self.distance_to(target_pos) == 0:
             return DIRECTIONS.CENTER
-        # closest_dist = self.distance_to(target_pos)
-        # closest_dir = DIRECTIONS.CENTER
 
         if pos_to_check is None:
             pos_to_check = {
                 direction: self.translate(direction, 1)
                 for direction in ALL_DIRECTIONS
             }
-        # for direction in ALL_DIRECTIONS:
-        #     newpos = self.translate(direction, 1)
 
         dists = {d: target_pos.distance_to(p) for d, p in pos_to_check.items()}
         return min(dists, key=dists.get)
-
-        # closest_dir, closest_dist = self.distance_to(target_pos)
-        # for direction, newpos in pos_to_check.items():
-        #     dist = target_pos.distance_to(newpos)
-        #     if dist < closest_dist:
-        #         closest_dir = direction
-        #         closest_dist = dist
-        # return closest_dir
 
     def __str__(self) -> str:
         return f"({self.x}, {self.y})"

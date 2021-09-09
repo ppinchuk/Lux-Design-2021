@@ -1,7 +1,7 @@
 from typing import Dict
-from collections import deque
+import sys
 
-from .constants import Constants
+from .constants import Constants, ValidActions
 from .game_map import Position
 from .game_constants import GAME_CONSTANTS
 
@@ -82,20 +82,7 @@ class Cargo:
         return f"Cargo | Wood: {self.wood}, Coal: {self.coal}, Uranium: {self.uranium}"
 
 
-class ValidActions:
-    MOVE = "move"
-    TRANSFER = "transfer"
-    PILLAGE = "pillage"
-    BUILD = "build"
-
-    @classmethod
-    def for_unit(cls, u_type):
-        if u_type == UNIT_TYPES.WORKER:
-            return {cls.MOVE, cls.TRANSFER, cls.PILLAGE, cls.BUILD}
-        elif u_type == UNIT_TYPES.CART:
-            return {cls.MOVE, cls.TRANSFER}
-        else:
-            return set()
+UNIT_CACHE = {}
 
 
 class Unit:
@@ -106,6 +93,25 @@ class Unit:
         self.type = u_type
         self.cooldown = cooldown
         self.cargo = Cargo(wood, coal, uranium)
+        self.__dict__.update(
+            UNIT_CACHE.get(self.id, {
+                'current_task': None,
+                'did_just_transfer': False,
+                'turns_spent_waiting_to_move': 0,
+                'should_avoid_citytiles': False
+            })
+        )
+
+    def __del__(self):
+        UNIT_CACHE[self.id] = {
+            key: self.__dict__[key]
+            for key in [
+                'current_task',
+                'did_just_transfer',
+                'turns_spent_waiting_to_move',
+                'should_avoid_citytiles'
+            ]
+        }
 
     def is_worker(self) -> bool:
         return self.type == UNIT_TYPES.WORKER
@@ -113,7 +119,78 @@ class Unit:
     def is_cart(self) -> bool:
         return self.type == UNIT_TYPES.CART
 
-    def get_cargo_space_left(self):
+    def set_task(self, action, target):
+        if action not in ValidActions.for_unit(self.type):
+            raise ValueError(
+                f"Invalid action {action} requested "
+                f"for unit {self.id} (type: {self.type})"
+            )
+        if action == ValidActions.MOVE and target == self.pos:
+            print(
+                f"Set move task for unit {self.id} (type {self.type}), "
+                f"but unit is already at {target}",
+                file=sys.stderr
+            )
+            return
+        if action == ValidActions.COLLECT and self.cargo_space_left() <= 0:
+            print(
+                f"Set collect task for unit {self.id} (type {self.type}), "
+                f"but unit is already at max cargo capacity.",
+                file=sys.stderr
+            )
+            return
+        if action == ValidActions.BUILD:
+            self.should_avoid_citytiles = True
+        self.current_task = (action, target)
+        # print(f"New task was set for unit at {self.pos}: {action} with target {target}", file=sys.stderr)
+
+    def propose_action(self, player_units, find_closest_resource):
+        if self.current_task is None or not self.can_act():
+            return None, None
+
+        action, target = self.current_task
+        target_pos = target
+        if action == ValidActions.TRANSFER:
+            target_id, __, __ = target
+            for unit in player_units:
+                if unit.id == target_id:
+                    target_pos = unit.pos
+                    break
+        elif action == ValidActions.BUILD and not self.has_enough_resources_to_build:
+            closest_resource_pos = find_closest_resource(target_pos).pos
+            if not self.pos.is_adjacent(closest_resource_pos):
+                return ValidActions.MOVE, closest_resource_pos
+            else:
+                return None, None  # collecting resources to build
+
+        if action in ValidActions.can_be_adjacent():
+            if not self.pos.is_adjacent(target_pos):
+                return ValidActions.MOVE, target_pos
+        else:
+            if self.pos != target_pos:
+                return ValidActions.MOVE, target_pos
+
+        return action, target
+
+    def check_for_task_completion(self, game_map):
+        if self.current_task is None:
+            return
+
+        action, target = self.current_task
+        if action == ValidActions.MOVE and self.pos == target:
+            self.current_task = None
+        elif action == ValidActions.COLLECT and self.cargo_space_left() <= 0:
+            self.current_task = None
+        elif action == ValidActions.BUILD and game_map.get_cell_by_pos(target).citytile is not None:
+            self.should_avoid_citytiles = False
+            self.current_task = None
+        elif action == ValidActions.PILLAGE and game_map.get_cell_by_pos(target).road == 0:
+            self.current_task = None
+        elif action == ValidActions.TRANSFER and self.did_just_transfer:
+            self.did_just_transfer = False
+            self.current_task = None
+
+    def cargo_space_left(self):
         """
         get cargo space left in this unit
         """
@@ -122,7 +199,11 @@ class Unit:
             return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"] - space_used
         else:
             return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["CART"] - space_used
-    
+
+    @property
+    def has_enough_resources_to_build(self) -> bool:
+        return (self.cargo.wood + self.cargo.coal + self.cargo.uranium) >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
+
     def can_build(self, game_map) -> bool:
         """
         whether or not the unit can build where it is right now
@@ -130,7 +211,7 @@ class Unit:
         if self.is_cart():
             return False
         cell = game_map.get_cell_by_pos(self.pos)
-        if not cell.has_resource() and cell.citytile is None and self.can_act() and (self.cargo.wood + self.cargo.coal + self.cargo.uranium) >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
+        if not cell.has_resource() and cell.citytile is None and self.can_act() and self.has_enough_resources_to_build:
             return True
         return False
 

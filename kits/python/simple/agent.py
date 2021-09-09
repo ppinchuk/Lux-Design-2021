@@ -1,7 +1,8 @@
 from lux.game import Game
 from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position, ResourceCluster
-from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER
+from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions
 from collections import Counter, UserDict
+from functools import partial
 from itertools import chain
 import sys
 from lux.game_constants import GAME_CONSTANTS
@@ -131,49 +132,34 @@ def find_clusters(game_state):
 # Prefer 2x2 clusters
 
 
-def decide_unit_action(unit, player, game_state, pos_units_will_move_to):
-    if unit.is_worker() and unit.can_act():
-        # we want to mine only if there is space left in the worker's cargo
-        if unit.get_cargo_space_left() > 0:
-            # find the closest resource if it exists to this unit
-            closest_resource_tile = find_closest_resources(unit.pos, player)
-            if closest_resource_tile is not None and closest_resource_tile.pos != unit.pos:
-                # create a move action to move this unit in the direction of the closest resource tile and add to our actions list
-                # TODO: Make sure two workers do not move onto the same time
-                pos_to_check = {}
-                for direction in ALL_DIRECTIONS:
-                    new_pos = unit.pos.translate(direction, 1)
-                    if not game_state.map.is_within_bounds(new_pos) or new_pos in pos_units_will_move_to:
-                        continue
-                    pos_to_check[direction] = new_pos
-                dir_to_move = unit.pos.direction_to(closest_resource_tile.pos, pos_to_check=pos_to_check)
-                if dir_to_move != DIRECTIONS.CENTER:
-                    return 'move', dir_to_move, unit.pos.translate(dir_to_move, 1)
-        else:
-            new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, player, game_state)
-            if new_city_pos is not None:
-                # print(f"New city is at:", new_city.pos, file=sys.stderr)
-                if unit.pos != new_city_pos:
-                    pos_to_check = {}
-                    for direction in ALL_DIRECTIONS:
-                        new_pos = unit.pos.translate(direction, 1)
-                        if not game_state.map.is_within_bounds(new_pos):
-                            continue
-                        new_pos_cell = game_state.map.get_cell_by_pos(new_pos)
-                        if new_pos_cell.citytile is None:
-                            pos_to_check[direction] = new_pos
-                    dir_to_move = unit.pos.direction_to(new_city_pos, pos_to_check=pos_to_check)
-                    return 'move', dir_to_move, unit.pos.translate(dir_to_move, 1)
-                else:
-                    return 'build', None, unit.pos
-            else:
-                # find the closest citytile and move the unit towards it to drop resources to a citytile to fuel the city
-                closest_city_tile = find_closest_city_tile(unit.pos, player)
-                if closest_city_tile is not None:
-                    dir_to_move = unit.pos.direction_to(closest_city_tile.pos)
-                    # create a move action to move this unit in the direction of the closest resource tile and add to our actions list
-                    return 'move', dir_to_move, unit.pos.translate(dir_to_move, 1)
-    return None, None, None
+def set_unit_task(unit, player, game_state):
+    if not unit.can_act():
+        return
+
+    new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, player, game_state)
+    if new_city_pos is not None:
+        unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
+
+    # if unit.is_worker():
+    #     # TODO: Update plan to move off of first city tile
+    #     # we want to mine only if there is space left in the worker's cargo
+    #     if unit.cargo_space_left() > 0:
+    #         # find the closest resource if it exists to this unit
+    #         closest_resource_tile = find_closest_resources(unit.pos, player)
+    #         if closest_resource_tile is not None:
+    #             unit.set_task(action=ValidActions.COLLECT, target=closest_resource_tile.pos)
+    #         # TODO: Else, do something here!!
+    #     else:
+    #         new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, player, game_state)
+    #         if new_city_pos is not None:
+    #             unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
+    #         # TODO: Else, do something here!!
+    #         else:
+    #             # find the closest citytile and move the unit towards it to drop resources to a citytile to fuel the city
+    #             closest_city_tile = find_closest_city_tile(unit.pos, player)
+    #             if closest_city_tile is not None:
+    #                 unit.set_task(action=ValidActions.MOVE, target=closest_city_tile.pos)
+    #             # TODO: Else, do something here!!
 
 
 class LogicGlobals:
@@ -184,7 +170,6 @@ class LogicGlobals:
 
 
 def agent(observation, configuration):
-    # global game_state, start_tile
 
     ### Do not edit ###
     if observation["step"] == 0:
@@ -204,38 +189,83 @@ def agent(observation, configuration):
         LogicGlobals.clusters = find_clusters(LogicGlobals.game_state)
         if LogicGlobals.start_tile is None:
             LogicGlobals.start_tile = find_closest_city_tile(Position(0, 0), player)
-        LogicGlobals.resource_tiles = find_resources(LogicGlobals.game_state)
+
+    LogicGlobals.resource_tiles = find_resources(LogicGlobals.game_state)
 
     for c in LogicGlobals.clusters:
         c.update_state(game_map=LogicGlobals.game_state.map)
 
     actions = []
-    # pos_units_will_move_to = set(unit.pos for unit in player.units)
-    proposed_unit_locations = {}
+    blocked_positions = set()
+
+    # Can block some wood clusters later using this code
+    # for cell in LogicGlobals.game_state.map.cells():
+    #     if cell.has_resource() or cell.citytile is not None:
+    #         blocked_positions.add(cell.pos)
+
+    for unit in opponent.units:
+        blocked_positions.add(unit.pos)
+        # TODO: This may cause issues in the endgame
+        blocked_positions.add(unit.pos.translate(DIRECTIONS.NORTH, 1))
+        blocked_positions.add(unit.pos.translate(DIRECTIONS.EAST, 1))
+        blocked_positions.add(unit.pos.translate(DIRECTIONS.WEST, 1))
+        blocked_positions.add(unit.pos.translate(DIRECTIONS.SOUTH, 1))
 
     for unit in player.units:
-        action, direction, new_pos = decide_unit_action(
-            unit, player, LogicGlobals.game_state, set(v[1] for v in proposed_unit_locations.values())
-        )
-        if action == 'move':
-            proposed_unit_locations[unit.id] = (direction, new_pos)
-        elif action == 'build':
-            actions.append(unit.build_city())
+        unit.check_for_task_completion(game_map=LogicGlobals.game_state.map)
+        blocked_positions.add(unit.pos)
 
-    duplicate_pos = set(pos for pos, count in Counter(proposed_unit_locations.values()).items() if count > 1) - set(city_tile.pos for city in player.cities.values() for city_tile in city.citytiles)
-    fixed_pos = {}
-    for unit_id, (direction, pos) in proposed_unit_locations.items():
-        unit = [u for u in player.units if u.id == unit_id][0]
-        if pos in duplicate_pos and pos in fixed_pos:
-            action, direction, new_pos = decide_unit_action(
-                unit, player, LogicGlobals.game_state, set(v[1] for v in proposed_unit_locations.values())
-            )
-            if action == 'move':
-                actions.append(unit.move(direction))
-            elif action == 'build':
-                actions.append(unit.build_city())
-        else:
-            actions.append(unit.move(direction))
+    for unit in player.units:
+        if unit.current_task is None:
+            set_unit_task(unit, player, LogicGlobals.game_state)
+
+    for unit in player.units:
+        action, __ = unit.propose_action(
+            player.units,
+            partial(find_closest_resources, player=player)
+        )
+        # print(f"Unit at {unit.pos} proposed action {action}", file=sys.stderr)
+        if action == ValidActions.MOVE:
+            blocked_positions.discard(unit.pos)
+
+    proposed_positions = {}
+    for unit in player.units:
+        action, target = unit.propose_action(
+            player.units,
+            partial(find_closest_resources, player=player)
+        )
+        if action is None:
+            continue
+        elif action == ValidActions.BUILD:
+            actions.append(unit.build_city())
+        elif action == ValidActions.TRANSFER:
+            actions.append(unit.transfer(*target))
+            unit.did_just_transfer = True
+        elif action == ValidActions.PILLAGE:
+            actions.append(unit.pillage())
+        elif action == ValidActions.MOVE:
+            blocked_positions.discard(unit.pos)
+
+            pos_to_check = {}
+            for direction in ALL_DIRECTIONS:
+                new_pos = unit.pos.translate(direction, 1)
+                pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
+                if not LogicGlobals.game_state.map.is_within_bounds(new_pos) or new_pos in blocked_positions or (pos_contains_citytile and unit.should_avoid_citytiles):
+                    continue
+                pos_to_check[direction] = new_pos
+            if not pos_to_check:
+                continue
+            dir_to_move = unit.pos.direction_to(target, pos_to_check=pos_to_check)
+            new_pos = pos_to_check[dir_to_move]
+            proposed_positions.setdefault(new_pos, []).append((unit, dir_to_move))
+
+    for pos, units in proposed_positions.items():
+        unit, direction = max(units, key=lambda pair: pair[0].turns_spent_waiting_to_move)
+        actions.append(unit.move(direction))
+        unit.turns_spent_waiting_to_move = 0
+        for other_unit in units:
+            if other_unit[0].id != unit.id:
+                other_unit[0].turns_spent_waiting_to_move += 1
 
     for _, city in player.cities.items():
         for city_tile in city.citytiles:
@@ -244,6 +274,8 @@ def agent(observation, configuration):
                     actions.append(city_tile.build_worker())
                 else:
                     actions.append(city_tile.research())
+
+    # DEBUG STUFF
 
     actions.append(
         annotate.sidetext(
