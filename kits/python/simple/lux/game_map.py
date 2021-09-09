@@ -142,6 +142,30 @@ class GameMap:
             ]
         return self._resources
 
+    def _check_for_cluster(self, position, resource_set, resource_type):
+        for step in ((-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)):
+            new_position = position.shift_by(*step)
+            if self.is_within_bounds(new_position) and new_position not in resource_set:
+                new_cell = self.get_cell_by_pos(new_position)
+                if new_cell.resource is not None and new_cell.resource.type == resource_type:
+                    resource_set.add(new_position)
+                    self._check_for_cluster(new_position, resource_set, resource_type)
+
+        return resource_set
+
+    def find_clusters(self):
+        resource_pos_found = set()
+        resource_clusters = []
+        for cell in self.cells():
+            if cell.has_resource() and cell.pos not in resource_pos_found:
+                new_cluster_pos = self._check_for_cluster(cell.pos, {cell.pos}, cell.resource.type)
+                resource_pos_found = resource_pos_found | new_cluster_pos
+                new_cluster = ResourceCluster(cell.resource.type)
+                new_cluster.add_resource_positions(*new_cluster_pos)
+                resource_clusters.append(new_cluster)
+
+        return resource_clusters
+
     def positions(self):
         """ Iterate over all positions of the map. """
         for x in range(self.height):

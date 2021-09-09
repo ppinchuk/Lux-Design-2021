@@ -1,5 +1,5 @@
 from lux.game import Game
-from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position, ResourceCluster
+from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position
 from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions
 from collections import Counter, UserDict
 import sys
@@ -43,7 +43,7 @@ POSITION_TO_CLUSTER = PositionToCluster()
 def city_tile_to_build(pos, player):
     if pos is None:
         return None
-    if LogicGlobals.resource_cluster_to_defend is None:
+    if LogicGlobals.resource_cluster_to_defend is None or LogicGlobals.resource_cluster_to_defend.total_amount <= 0:
         resource_pos = pos.find_closest_resource(player, LogicGlobals.game_state.map, prefer_unlocked_resources=True)
         # print(f"Resource position: {resource_pos.pos}", file=sys.stderr)
         LogicGlobals.resource_cluster_to_defend = POSITION_TO_CLUSTER[resource_pos]
@@ -54,32 +54,6 @@ def city_tile_to_build(pos, player):
         if cell.citytile is None and pos not in LogicGlobals.pos_being_built:
             return cell.pos
     return None
-
-
-def _check_for_cluster(game_map, position, resource_set, resource_type):
-    for step in ((-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1)):
-        new_position = position.shift_by(*step)
-        if game_map.is_within_bounds(new_position) and new_position not in resource_set:
-            new_cell = game_map.get_cell_by_pos(new_position)
-            if new_cell.resource is not None and new_cell.resource.type == resource_type:
-                resource_set.add(new_position)
-                _check_for_cluster(game_map, new_position, resource_set, resource_type)
-
-    return resource_set
-
-
-def find_clusters(game_state):
-    resource_pos_found = set()
-    resource_clusters = []
-    for cell in game_state.map.cells():
-        if cell.has_resource() and cell.pos not in resource_pos_found:
-            new_cluster_pos = _check_for_cluster(game_state.map, cell.pos, {cell.pos}, cell.resource.type)
-            resource_pos_found = resource_pos_found | new_cluster_pos
-            new_cluster = ResourceCluster(cell.resource.type)
-            new_cluster.add_resource_positions(*new_cluster_pos)
-            resource_clusters.append(new_cluster)
-
-    return resource_clusters
 
 
 # if our cluster is separate from other base, build around them.
@@ -131,7 +105,7 @@ def agent(observation, configuration):
     width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
 
     if LogicGlobals.game_state.turn == 0:
-        LogicGlobals.clusters = find_clusters(LogicGlobals.game_state)
+        LogicGlobals.clusters = LogicGlobals.game_state.map.find_clusters()
         if LogicGlobals.start_tile is None:
             LogicGlobals.start_tile = Position(0, 0).find_closest_city_tile(player, LogicGlobals.game_state.map)
 
