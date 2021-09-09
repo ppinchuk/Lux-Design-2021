@@ -42,10 +42,10 @@ class PositionToCluster(MemDict):
 POSITION_TO_CLUSTER = PositionToCluster()
 
 
-def city_tile_to_build(pos, player, game_state):
+def city_tile_to_build(pos, game_state):
     if pos is None:
         return None
-    resource_pos = find_closest_resources(pos, player)
+    resource_pos = find_closest_resources(pos, prefer_upgrades=True)
     resource_cluster = POSITION_TO_CLUSTER[resource_pos.pos]
     for pos in resource_cluster.pos_to_defend:
         cell = game_state.map.get_cell_by_pos(pos)
@@ -64,22 +64,22 @@ def find_resources(game_state):
 
 
 # the next snippet finds the closest resources that we can mine given position on a map
-def find_closest_resources(pos, player):
+def find_closest_resources(pos, prefer_upgrades=False):
     closest_dist = math.inf
     closest_resource_tile = None
     for resource_tile in LogicGlobals.resource_tiles:
-        # Better(?) logic below
-        # if resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD:
-        #     if resource_tile.resource.amount < 500 or player.researched_coal():
-        #         continue
-        # if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL:
-        #     if not player.researched_coal() or player.researched_uranium()):
-        #         continue
-
-        # we skip over resources that we can't mine due to not having researched them
-        if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
-        if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
-        if resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD and resource_tile.resource.amount < 500: continue
+        if prefer_upgrades:
+            if resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD:
+                if resource_tile.resource.amount < 500 or LogicGlobals.unlocked_coal:
+                    continue
+            if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL:
+                if not LogicGlobals.unlocked_coal or LogicGlobals.unlocked_uranium:
+                    continue
+        else:
+            # we skip over resources that we can't mine due to not having researched them
+            if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not LogicGlobals.unlocked_coal: continue
+            if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not LogicGlobals.unlocked_uranium: continue
+            if resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD and resource_tile.resource.amount < 500: continue
         dist = resource_tile.pos.distance_to(pos)
         if dist < closest_dist:
             closest_dist = dist
@@ -132,11 +132,11 @@ def find_clusters(game_state):
 # Prefer 2x2 clusters
 
 
-def set_unit_task(unit, player, game_state):
+def set_unit_task(unit, game_state):
     if not unit.can_act():
         return
 
-    new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, player, game_state)
+    new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, game_state)
     if new_city_pos is not None:
         unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
 
@@ -145,12 +145,12 @@ def set_unit_task(unit, player, game_state):
     #     # we want to mine only if there is space left in the worker's cargo
     #     if unit.cargo_space_left() > 0:
     #         # find the closest resource if it exists to this unit
-    #         closest_resource_tile = find_closest_resources(unit.pos, player)
+    #         closest_resource_tile = find_closest_resources(unit.pos)
     #         if closest_resource_tile is not None:
     #             unit.set_task(action=ValidActions.COLLECT, target=closest_resource_tile.pos)
     #         # TODO: Else, do something here!!
     #     else:
-    #         new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, player, game_state)
+    #         new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, game_state)
     #         if new_city_pos is not None:
     #             unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
     #         # TODO: Else, do something here!!
@@ -167,6 +167,8 @@ class LogicGlobals:
     start_tile = None
     clusters = None
     resource_tiles = None
+    unlocked_coal = False
+    unlocked_uranium = False
 
 
 def agent(observation, configuration):
@@ -191,6 +193,8 @@ def agent(observation, configuration):
             LogicGlobals.start_tile = find_closest_city_tile(Position(0, 0), player)
 
     LogicGlobals.resource_tiles = find_resources(LogicGlobals.game_state)
+    LogicGlobals.unlocked_coal = player.researched_coal()
+    LogicGlobals.unlocked_uranium = player.researched_uranium()
 
     for c in LogicGlobals.clusters:
         c.update_state(game_map=LogicGlobals.game_state.map)
@@ -217,13 +221,10 @@ def agent(observation, configuration):
 
     for unit in player.units:
         if unit.current_task is None:
-            set_unit_task(unit, player, LogicGlobals.game_state)
+            set_unit_task(unit, LogicGlobals.game_state)
 
     for unit in player.units:
-        action, __ = unit.propose_action(
-            player.units,
-            partial(find_closest_resources, player=player)
-        )
+        action, __ = unit.propose_action(player.units, find_closest_resources)
         # print(f"Unit at {unit.pos} proposed action {action}", file=sys.stderr)
         if action == ValidActions.MOVE:
             blocked_positions.discard(unit.pos)
@@ -231,8 +232,7 @@ def agent(observation, configuration):
     proposed_positions = {}
     for unit in player.units:
         action, target = unit.propose_action(
-            player.units,
-            partial(find_closest_resources, player=player)
+            player.units, find_closest_resources
         )
         if action is None:
             continue
@@ -298,7 +298,21 @@ def agent(observation, configuration):
         for pos in cluster.pos_to_defend:
             actions.append(annotate.x(pos.x, pos.y))
 
-    actions.append(annotate.text(15, 15, "Some message to convey"))
+    for unit in player.units:
+        if unit.current_task is None:
+            actions.append(
+                annotate.sidetext(
+                    f"{unit.id}: None"
+                )
+            )
+        else:
+            actions.append(
+                annotate.sidetext(
+                    f"{unit.id}: {unit.current_task[0]} at {unit.current_task[1]} ".replace(',', ';').replace('(','[').replace(')', ']')
+                )
+            )
+
+    actions.append(annotate.text(15, 15, "A"))
 
     return actions
 
