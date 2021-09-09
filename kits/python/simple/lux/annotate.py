@@ -19,3 +19,7 @@ def text(x: int, y: int, message: str, fontsize: int = 16) -> str:
 # text besides map
 def sidetext(message: str) -> str:
     return f"dst '{message}'"
+
+
+def format_message(message):
+    return message.replace(',', ';').replace('(', '[').replace(')', ']')

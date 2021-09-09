@@ -158,7 +158,7 @@ class Unit:
         self.current_task = (action, target)
         # print(f"New task was set for unit at {self.pos}: {action} with target {target}", file=sys.stderr)
 
-    def propose_action(self, player_units, find_closest_resource):
+    def propose_action(self, player, game_state):
         if self.current_task is None or not self.can_act():
             return None, None
 
@@ -166,13 +166,13 @@ class Unit:
         target_pos = target
         if action == ValidActions.TRANSFER:
             target_id, __, __ = target
-            for unit in player_units:
+            for unit in player.units:
                 if unit.id == target_id:
                     target_pos = unit.pos
                     break
         elif action == ValidActions.BUILD and not self.has_enough_resources_to_build:
-            closest_resource_pos = find_closest_resource(target_pos).pos
-            if not self.pos.is_adjacent(closest_resource_pos):
+            closest_resource_pos = target_pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
+            if not self.pos.is_adjacent(closest_resource_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
                 return ValidActions.MOVE, closest_resource_pos
             else:
                 return None, None  # collecting resources to build
@@ -235,30 +235,38 @@ class Unit:
         """
         return self.cooldown < 1
 
-    def move(self, dir) -> str:
+    def move(self, dir, logs=None) -> str:
         """
         return the command to move unit in the given direction
         """
+        if logs is not None:
+            logs.append((self.id, ValidActions.MOVE, dir))
         return "m {} {}".format(self.id, dir)
 
-    def transfer(self, dest_id, resourceType, amount) -> str:
+    def transfer(self, dest_id, resourceType, amount, logs=None) -> str:
         """
         return the command to transfer a resource from a source unit to a destination unit as specified by their ids
         """
+        if logs is not None:
+            logs.append((self.id, ValidActions.TRANSFER, dest_id))
         return "t {} {} {} {}".format(self.id, dest_id, resourceType, amount)
 
-    def build_city(self) -> str:
+    def build_city(self, logs=None) -> str:
         """
         return the command to build a city right under the worker
         """
         if self.is_cart():
             raise ValueError(f"Unit {self.id} is a cart; cannot build a city!")
+        if logs is not None:
+            logs.append((self.id, ValidActions.BUILD, self.pos))
         return "bcity {}".format(self.id)
 
-    def pillage(self) -> str:
+    def pillage(self, logs=None) -> str:
         """
         return the command to pillage whatever is underneath the worker
         """
         if self.is_cart():
             raise ValueError(f"Unit {self.id} is a cart; cannot pillage!")
+        if logs is not None:
+            logs.append((self.id, ValidActions.PILLAGE, self.pos))
         return "p {}".format(self.id)
