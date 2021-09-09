@@ -125,6 +125,12 @@ class GameMap:
         cell = self.get_cell(x, y)
         cell.resource = Resource(r_type, amount)
 
+    def num_adjacent_resources(self, pos, include_center=True):
+        return sum(
+            self.get_cell_by_pos(p).has_resource()
+            for p in pos.adjacent_positions(include_center=include_center)
+        )
+
     def positions(self):
         """ Iterate over all positions of the map. """
         for x in range(self.height):
