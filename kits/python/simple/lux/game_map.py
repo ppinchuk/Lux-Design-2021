@@ -161,6 +161,17 @@ class Position:
     def __hash__(self):
         return hash((self.x, self.y))
 
+    def adjacent_positions(self, include_center=True):
+        adjacent_positions = {
+            self.translate(DIRECTIONS.NORTH, 1),
+            self.translate(DIRECTIONS.EAST, 1),
+            self.translate(DIRECTIONS.SOUTH, 1),
+            self.translate(DIRECTIONS.WEST, 1),
+        }
+        if include_center:
+            adjacent_positions.add(self)
+        return adjacent_positions
+
     def equals(self, pos):
         return self == pos
 
