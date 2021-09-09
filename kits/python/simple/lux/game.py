@@ -1,6 +1,7 @@
 from .constants import Constants
 from .game_map import GameMap
 from .game_objects import Player, Unit, City, CityTile
+from .game_constants import GAME_CONSTANTS
 
 INPUT_CONSTANTS = Constants.INPUT_CONSTANTS
 
@@ -12,6 +13,7 @@ class Game:
         """
         self.id = int(messages[0])
         self.turn = -1
+        self.turns_until_next_night = 30
         # get some other necessary initial input
         mapInfo = messages[1].split(" ")
         self.map_width = int(mapInfo[0])
@@ -36,6 +38,9 @@ class Game:
         """
         self.map = GameMap(self.map_width, self.map_height)
         self.turn += 1
+        self.turns_until_next_night = max(0,
+            GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] - self.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]
+        )
         self._reset_player_states()
 
         for update in messages:
