@@ -30,6 +30,8 @@ class City:
         self.fuel = fuel
         self.citytiles: list[CityTile] = []
         self.light_upkeep = light_upkeep
+        self.managers = set()
+        self.resource_positions = []
 
     def _add_city_tile(self, x, y, cooldown):
         ct = CityTile(self.team, self.cityid, x, y, cooldown)
@@ -38,6 +40,18 @@ class City:
 
     def get_light_upkeep(self):
         return self.light_upkeep
+
+    def update_resource_positions(self, game_map):
+        num_resources_for_tile = [
+            (
+                tile.pos,
+                game_map.num_adjacent_resources(tile.pos, include_center=False)
+            )
+            for tile in self.citytiles
+        ]
+        self.resource_positions = [
+            x[0] for x in sorted(num_resources_for_tile, key=lambda x: x[1])
+        ][::-1]
 
 
 class CityTile:
