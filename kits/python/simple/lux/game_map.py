@@ -209,5 +209,5 @@ class Position:
         dists = {d: target_pos.distance_to(p) for d, p in pos_to_check.items()}
         return min(dists, key=dists.get)
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"({self.x}, {self.y})"
