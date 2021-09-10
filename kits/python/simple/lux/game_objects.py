@@ -1,5 +1,6 @@
 from typing import Dict
 import sys
+from collections import deque
 
 from .constants import Constants, ValidActions
 from .game_map import Position
@@ -110,6 +111,7 @@ class Unit:
         self.__dict__.update(
             UNIT_CACHE.get(self.id, {
                 'current_task': None,
+                'task_q': deque(),
                 'did_just_transfer': False,
                 'turns_spent_waiting_to_move': 0,
                 'should_avoid_citytiles': False
@@ -121,6 +123,7 @@ class Unit:
             key: self.__dict__[key]
             for key in [
                 'current_task',
+                'task_q',
                 'did_just_transfer',
                 'turns_spent_waiting_to_move',
                 'should_avoid_citytiles'
@@ -153,26 +156,35 @@ class Unit:
                 file=sys.stderr
             )
             return
-        if action == ValidActions.BUILD:
-            self.should_avoid_citytiles = True
+        # if action == ValidActions.BUILD:
+        #     self.should_avoid_citytiles = True
         self.current_task = (action, target)
         # print(f"New task was set for unit at {self.pos}: {action} with target {target}", file=sys.stderr)
+
+    def push_task(self, task):
+        self.task_q.append(self.current_task)
+        self.current_task = task
 
     def propose_action(self, player, game_state):
         if self.current_task is None or not self.can_act():
             return None, None
 
         action, target = self.current_task
-        target_pos = target
         if action == ValidActions.TRANSFER:
             target_id, __, __ = target
             for unit in player.units:
                 if unit.id == target_id:
                     target_pos = unit.pos
+                    if not self.pos.is_adjacent(target_pos):
+                        self.push_task((ValidActions.MOVE, target_pos))
                     break
-        elif action == ValidActions.MANAGE:
-            if player.cities[target].resource_positions:
-                target_pos = player.cities[target].resource_positions[0]
+
+        action, target = self.current_task
+        if action == ValidActions.MANAGE:
+            if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=True) > 0 for p in  player.cities[target].resource_positions):
+                for target_pos in player.cities[target].resource_positions:
+                    if game_state.map.num_adjacent_resources(target_pos, do_wood_check=True) > 0:
+                        break
             else:
                 if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"]:
                     target_pos = self.pos.find_closest_resource(
@@ -183,23 +195,36 @@ class Unit:
                         [cell.pos for cell in player.cities[target].citytiles],
                         key=self.pos.distance_to
                     )
-        elif action == ValidActions.BUILD and not self.has_enough_resources_to_build:
-            closest_resource_pos = target_pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
-            if closest_resource_pos.is_adjacent(target_pos):
-                return ValidActions.MOVE, closest_resource_pos
-            elif not self.pos.is_adjacent(closest_resource_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
-                return ValidActions.MOVE, closest_resource_pos
-            else:
-                return None, None  # collecting resources to build
+            if target_pos != self.pos:
+                self.push_task((ValidActions.MOVE, target_pos))
 
-        if action in ValidActions.can_be_adjacent():
-            if not self.pos.is_adjacent(target_pos):
-                return ValidActions.MOVE, target_pos
+        action, target_pos = self.current_task
+        if action == ValidActions.BUILD:
+            self.should_avoid_citytiles = True
+            if not self.has_enough_resources_to_build:
+                closest_resource_pos = target_pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
+                if closest_resource_pos is not None:
+                    self.push_task((ValidActions.COLLECT, closest_resource_pos))
+                else:
+                    return None, None
+            elif self.pos != target_pos:
+                self.push_task((ValidActions.MOVE, target_pos))
         else:
-            if self.pos != target_pos:
-                return ValidActions.MOVE, target_pos
+            self.should_avoid_citytiles = False
 
-        return action, target
+        action, target_pos = self.current_task
+        if action == ValidActions.COLLECT:
+            if not self.pos.is_adjacent(target_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
+                self.push_task((ValidActions.MOVE, target_pos))
+
+        # if action in ValidActions.can_be_adjacent():
+        #     if not self.pos.is_adjacent(target_pos):
+        #         return ValidActions.MOVE, target_pos
+        # else:
+        #     if self.pos != target_pos:
+        #         return ValidActions.MOVE, target_pos
+
+        return self.current_task
 
     def check_for_task_completion(self, game_map):
         if self.current_task is None:
@@ -218,6 +243,9 @@ class Unit:
         elif action == ValidActions.TRANSFER and self.did_just_transfer:
             self.did_just_transfer = False
             self.current_task = None
+
+        if self.current_task is None and self.task_q:
+            self.current_task = self.task_q.popleft()
 
     def cargo_space_left(self):
         """

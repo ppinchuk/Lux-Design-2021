@@ -93,8 +93,11 @@ class Cell:
         self.citytile = None
         self.road = 0
 
-    def has_resource(self):
-        return self.resource is not None and self.resource.amount > 0
+    def has_resource(self, do_wood_check=False):
+        if do_wood_check:
+            return self.resource is not None and ((self.resource.type != RESOURCE_TYPES.WOOD and self.resource.amount > 0) or (self.resource.type == RESOURCE_TYPES.WOOD and self.resource.amount >= 500))
+        else:
+            return self.resource is not None and self.resource.amount > 0
 
 
 class GameMap:
@@ -127,9 +130,9 @@ class GameMap:
         cell = self.get_cell(x, y)
         cell.resource = Resource(r_type, amount)
 
-    def num_adjacent_resources(self, pos, include_center=True):
+    def num_adjacent_resources(self, pos, include_center=True, do_wood_check=False):
         return sum(
-            self.get_cell_by_pos(p).has_resource()
+            self.get_cell_by_pos(p).has_resource(do_wood_check=do_wood_check)
             for p in pos.adjacent_positions(include_center=include_center)
         )
 
