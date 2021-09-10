@@ -170,9 +170,24 @@ class Unit:
                 if unit.id == target_id:
                     target_pos = unit.pos
                     break
+        elif action == ValidActions.MANAGE:
+            if player.cities[target].resource_positions:
+                target_pos = player.cities[target].resource_positions[0]
+            else:
+                if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"]:
+                    target_pos = self.pos.find_closest_resource(
+                        player, game_state.map, prefer_unlocked_resources=True
+                    )
+                else:
+                    target_pos = min(
+                        [cell.pos for cell in player.cities[target].citytiles],
+                        key=self.pos.distance_to
+                    )
         elif action == ValidActions.BUILD and not self.has_enough_resources_to_build:
             closest_resource_pos = target_pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
-            if not self.pos.is_adjacent(closest_resource_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
+            if closest_resource_pos.is_adjacent(target_pos):
+                return ValidActions.MOVE, closest_resource_pos
+            elif not self.pos.is_adjacent(closest_resource_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
                 return ValidActions.MOVE, closest_resource_pos
             else:
                 return None, None  # collecting resources to build
@@ -208,15 +223,18 @@ class Unit:
         """
         get cargo space left in this unit
         """
-        space_used = self.cargo.wood + self.cargo.coal + self.cargo.uranium
         if self.type == UNIT_TYPES.WORKER:
-            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"] - space_used
+            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"] - self.num_resources
         else:
-            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["CART"] - space_used
+            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["CART"] - self.num_resources
+
+    @property
+    def num_resources(self) -> int:
+        return self.cargo.wood + self.cargo.coal + self.cargo.uranium
 
     @property
     def has_enough_resources_to_build(self) -> bool:
-        return (self.cargo.wood + self.cargo.coal + self.cargo.uranium) >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
+        return self.num_resources >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
 
     def can_build(self, game_map) -> bool:
         """

@@ -64,13 +64,15 @@ def set_unit_task(unit, player):
     if not unit.can_act():
         return
 
-    # # TODO: May be better if a city requests a manager from a nearby unit
-    # if LogicGlobals.player.city_tile_count >= 5 or (LogicGlobals.game_state.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]) > GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] // 2:
-    #     for city in LogicGlobals.player.cities:
-    #         if not city.managers:
-    #             unit.set_task(action=ValidActions.BUILD, target=city.id)
+    # TODO: May be better if a city requests a manager from a nearby unit
+    if LogicGlobals.player.city_tile_count >= 5 or (LogicGlobals.game_state.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]) > GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] // 2:
+        for __, city in LogicGlobals.player.cities.items():
+            if not city.managers:
+                unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+                city.managers.add(unit.id)
+                return
 
-    new_city_pos = city_tile_to_build(LogicGlobals.start_tile.pos, player)
+    new_city_pos = city_tile_to_build(LogicGlobals.start_tile, player)
     if new_city_pos is not None:
         unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
         LogicGlobals.pos_being_built.add(new_city_pos)
@@ -109,6 +111,10 @@ def agent(observation, configuration):
         if LogicGlobals.start_tile is None:
             LogicGlobals.start_tile = Position(0, 0).find_closest_city_tile(player, LogicGlobals.game_state.map)
 
+    # LogicGlobals.clusters = LogicGlobals.game_state.map.find_clusters()
+    # if LogicGlobals.start_tile is None:
+    #     LogicGlobals.start_tile = Position(0, 0).find_closest_city_tile(player, LogicGlobals.game_state.map)
+
     LogicGlobals.unlocked_coal = player.researched_coal()
     LogicGlobals.unlocked_uranium = player.researched_uranium()
     LogicGlobals.cities = player.cities
@@ -126,10 +132,10 @@ def agent(observation, configuration):
     blocked_positions = set()
 
     # Not sure if this is good or not
-    for cell in LogicGlobals.game_state.map.cells():
-        if cell.has_resource() and cell.resource.type == Constants.RESOURCE_TYPES.WOOD:
-            if cell.resource.amount < 500:
-                blocked_positions = blocked_positions | cell.pos.adjacent_positions()
+    # for cell in LogicGlobals.game_state.map.cells():
+    #     if cell.has_resource() and cell.resource.type == Constants.RESOURCE_TYPES.WOOD:
+    #         if cell.resource.amount < 500:
+    #             blocked_positions = blocked_positions | cell.pos.adjacent_positions()
 
     for unit in opponent.units:
         # TODO: This may cause issues in the endgame
@@ -143,12 +149,13 @@ def agent(observation, configuration):
             if unit.current_task[0] == ValidActions.BUILD:
                 LogicGlobals.pos_being_built.add(unit.current_task[1])
             elif unit.current_task[0] == ValidActions.MANAGE:
-                player.cities[unit.current_task[1]].managers.add(unit.id)
+                if unit.current_task[1] in player.cities:
+                    player.cities[unit.current_task[1]].managers.add(unit.id)
+                else:
+                    unit.current_task = None
 
-    # LogicGlobals.pos_being_built = {
-    #     u.current_task[1] for u in player.units if
-    #     u.current_task is not None and u.current_task[0] == ValidActions.BUILD
-    # }
+    # for city_id, city in LogicGlobals.player.cities.items():
+    #     print(f"Turn {LogicGlobals.game_state.turn} city {city_id} managers: {city.managers}", file=sys.stderr)
 
     for __, city in player.cities.items():
         for tile in city.citytiles:
@@ -194,8 +201,10 @@ def agent(observation, configuration):
                 blocked_positions.add(unit.pos)
                 continue
             dir_to_move = unit.pos.direction_to(target, pos_to_check=pos_to_check)
+            if dir_to_move == DIRECTIONS.CENTER:
+                continue
             new_pos = pos_to_check[dir_to_move]
-            if new_pos in blocked_positions: #  and unit.turns_spent_waiting_to_move < 1:
+            if new_pos in blocked_positions:
                 unit.turns_spent_waiting_to_move += 1
                 blocked_positions.add(unit.pos)
                 continue

@@ -268,6 +268,9 @@ class Position:
                     if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL:
                         if not player.researched_coal() or player.researched_uranium():
                             continue
+                    if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM:
+                        if not player.researched_uranium():
+                            continue
                 else:
                     # we skip over resources that we can't mine due to not having researched them
                     if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
