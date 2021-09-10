@@ -192,6 +192,8 @@ def agent(observation, configuration):
             pos_to_check = {}
             for direction in ALL_DIRECTIONS:
                 new_pos = unit.pos.translate(direction, 1)
+                if not LogicGlobals.game_state.map.is_within_bounds(new_pos):
+                    continue
                 pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
                 if not LogicGlobals.game_state.map.is_within_bounds(new_pos) or (pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5):
                     continue
