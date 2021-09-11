@@ -2,6 +2,7 @@ from lux.game import Game
 from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position
 from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions
 from collections import Counter, UserDict
+from itertools import chain
 import sys
 from lux.game_constants import GAME_CONSTANTS
 from lux import annotate
@@ -145,12 +146,12 @@ def agent(observation, configuration):
     for unit in player.units:
         unit.check_for_task_completion(game_map=LogicGlobals.game_state.map)
         blocked_positions.add(unit.pos)
-        if unit.current_task is not None:
-            if unit.current_task[0] == ValidActions.BUILD:
-                LogicGlobals.pos_being_built.add(unit.current_task[1])
-            elif unit.current_task[0] == ValidActions.MANAGE:
-                if unit.current_task[1] in player.cities:
-                    player.cities[unit.current_task[1]].managers.add(unit.id)
+        for task, target in chain([unit.current_task if unit.current_task is not None else (None, None)], unit.task_q):
+            if task == ValidActions.BUILD:
+                LogicGlobals.pos_being_built.add(target)
+            elif task == ValidActions.MANAGE:
+                if target in player.cities:
+                    player.cities[target].managers.add(unit.id)
                 else:
                     unit.current_task = None
 
@@ -160,6 +161,7 @@ def agent(observation, configuration):
     for __, city in player.cities.items():
         for tile in city.citytiles:
             blocked_positions.discard(tile.pos)
+        print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=sys.stderr)
 
     for unit in player.units:
         if unit.current_task is None:
