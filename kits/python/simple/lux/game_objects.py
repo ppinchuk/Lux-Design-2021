@@ -114,7 +114,8 @@ class Unit:
                 'task_q': deque(),
                 'did_just_transfer': False,
                 'turns_spent_waiting_to_move': 0,
-                'should_avoid_citytiles': False
+                'should_avoid_citytiles': False,
+                'has_colonized': False,
             })
         )
 
@@ -126,7 +127,8 @@ class Unit:
                 'task_q',
                 'did_just_transfer',
                 'turns_spent_waiting_to_move',
-                'should_avoid_citytiles'
+                'should_avoid_citytiles',
+                'has_colonized'
             ]
         }
 
@@ -254,6 +256,7 @@ class Unit:
         elif action == ValidActions.BUILD and game_map.get_cell_by_pos(target).citytile is not None:
             self.should_avoid_citytiles = False
             self.current_task = None
+            self.has_colonized = True
         elif action == ValidActions.PILLAGE and game_map.get_cell_by_pos(target).road == 0:
             self.current_task = None
         elif action == ValidActions.TRANSFER and self.did_just_transfer:
