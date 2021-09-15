@@ -1,5 +1,5 @@
 from lux.game import Game
-from lux.game_map import Cell, RESOURCE_TYPES, Position
+from lux.game_map import Cell, Position
 from lux.constants import Constants
 from lux.game_constants import GAME_CONSTANTS
 from lux import annotate
