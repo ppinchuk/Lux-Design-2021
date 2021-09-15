@@ -16,6 +16,7 @@ class Player:
         self.units: list[Unit] = []
         self.cities: Dict[str, City] = {}
         self.city_tile_count = 0
+        self.city_pos = set()
 
     def researched_coal(self) -> bool:
         return self.research_points >= GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]
@@ -213,6 +214,8 @@ class Unit:
                     return None, None
             elif self.pos != target_pos:
                 self.push_task((ValidActions.MOVE, target_pos))
+            if game_state.turns_until_next_night < 1:
+                return None, None
         # else:
         #     self.should_avoid_citytiles = False
 
