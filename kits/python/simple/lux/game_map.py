@@ -25,6 +25,7 @@ class ResourceCluster:
         self.pos_defended = []
         self.min_loc = None
         self.max_loc = None
+        self.center_pos = None
 
     def __eq__(self, other) -> bool:
         return self.resource_positions == other.resource_positions
@@ -53,6 +54,10 @@ class ResourceCluster:
 
             self.min_loc = (min(x_vals), min(y_vals))
             self.max_loc = (max(x_vals), max(y_vals))
+            self.center_pos = Position(
+                (self.max_loc[0] - self.min_loc[0]) // 2,
+                (self.max_loc[1] - self.min_loc[1]) // 2,
+            )
 
             self.pos_to_defend += [
                 Position(x, self.min_loc[1] - 1)
