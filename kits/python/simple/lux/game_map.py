@@ -5,7 +5,9 @@ import sys
 from .constants import Constants, ALL_DIRECTIONS
 
 DIRECTIONS = Constants.DIRECTIONS
-RESOURCE_TYPES = Constants.RESOURCE_TYPES
+WOOD = Constants.RESOURCE_TYPES.WOOD
+COAL = Constants.RESOURCE_TYPES.COAL
+URANIUM = Constants.RESOURCE_TYPES.URANIUM
 
 
 class Resource:
@@ -104,7 +106,7 @@ class Cell:
 
     def has_resource(self, do_wood_check=False):
         if do_wood_check:
-            return self.resource is not None and ((self.resource.type != RESOURCE_TYPES.WOOD and self.resource.amount > 0) or (self.resource.type == RESOURCE_TYPES.WOOD and self.resource.amount >= 500))
+            return self.resource is not None and ((self.resource.type != WOOD and self.resource.amount > 0) or (self.resource.type == WOOD and self.resource.amount >= 500))
         else:
             return self.resource is not None and self.resource.amount > 0
 
@@ -196,7 +198,11 @@ class Position:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self._closest_resource_pos = None
+        self._closest_resource_pos = {
+            WOOD: None,
+            COAL: None,
+            URANIUM: None,
+        }
         self._closest_city_pos = None
 
     def __sub__(self, pos) -> int:
@@ -296,29 +302,34 @@ class Position:
 
         """
 
-        if self._closest_resource_pos is None or not game_map.get_cell_by_pos(self._closest_resource_pos).has_resource():
-            closest_dist = math.inf
-            for resource_tile in game_map.resources():
-                if prefer_unlocked_resources:
-                    if resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD:
-                        if resource_tile.resource.amount < 500 or player.researched_coal():
-                            continue
-                    if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL:
-                        if not player.researched_coal() or player.researched_uranium():
-                            continue
-                    if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM:
-                        if not player.researched_uranium():
-                            continue
-                else:
-                    # we skip over resources that we can't mine due to not having researched them
-                    if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
-                    if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
-                    if resource_tile.resource.type == Constants.RESOURCE_TYPES.WOOD and resource_tile.resource.amount < 500: continue
-                dist = resource_tile.pos.distance_to(self)
-                if dist < closest_dist:
-                    closest_dist = dist
-                    self._closest_resource_pos = resource_tile.pos
-        return self._closest_resource_pos
+        if prefer_unlocked_resources:
+            if player.researched_uranium():
+                resources_to_consider = [URANIUM]
+            elif player.researched_coal():
+                resources_to_consider = [COAL]
+            else:
+                resources_to_consider = [WOOD]
+        else:
+            resources_to_consider = [WOOD]
+            if player.researched_coal():
+                resources_to_consider.append(COAL)
+            if player.researched_uranium:
+                resources_to_consider.append(COAL)
+
+        for resource in resources_to_consider:
+            if self._closest_resource_pos[resource] is None or not game_map.get_cell_by_pos(self._closest_resource_pos[resource]).has_resource():
+                closest_dist = math.inf
+                for resource_tile in game_map.resources():
+                    if resource_tile.resource.type != resource:
+                        continue
+                    dist = resource_tile.pos.distance_to(self)
+                    if dist < closest_dist:
+                        closest_dist = dist
+                        self._closest_resource_pos[resource] = resource_tile.pos
+        return min(
+            [self._closest_resource_pos[r] for r in  resources_to_consider],
+            key=self.distance_to
+        )
 
     def direction_to(self, target_pos: 'Position', pos_to_check=None) -> DIRECTIONS:
         """ Return closest position to target_pos from this position
