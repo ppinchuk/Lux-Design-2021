@@ -1,5 +1,5 @@
 from lux.game import Game
-from lux.game_map import Cell, RESOURCE_TYPES, DIRECTIONS, Position
+from lux.game_map import Cell, DIRECTIONS, Position
 from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions
 from collections import Counter, UserDict
 from itertools import chain
@@ -41,7 +41,7 @@ class PositionToCluster(MemDict):
 POSITION_TO_CLUSTER = PositionToCluster()
 
 
-def city_tile_to_build(pos, player):
+def city_tile_to_build_old(pos, player):
     if pos is None:
         return None
     if LogicGlobals.resource_cluster_to_defend is None or LogicGlobals.resource_cluster_to_defend.total_amount <= 0:
@@ -57,6 +57,14 @@ def city_tile_to_build(pos, player):
     return None
 
 
+def city_tile_to_build(cluster):
+    for pos in cluster.pos_to_defend:
+        cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
+        if cell.citytile is None and pos not in LogicGlobals.pos_being_built:
+            return cell.pos
+    return None
+
+
 # if our cluster is separate from other base, build around them.
 # Prefer 2x2 clusters
 
@@ -65,18 +73,38 @@ def set_unit_task(unit, player):
     if not unit.can_act():
         return
 
-    # TODO: May be better if a city requests a manager from a nearby unit
-    if LogicGlobals.player.city_tile_count >= 5 or (LogicGlobals.game_state.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]) > GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] // 2:
-        for __, city in LogicGlobals.player.cities.items():
-            if not city.managers:
-                unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
-                city.managers.add(unit.id)
-                return
+    if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
+        cluster_to_defend = min(
+            LogicGlobals.clusters_to_colonize,
+            key=lambda c: min(unit.pos.distance_to(p) for p in c.pos_to_defend)
+        )
 
-    new_city_pos = city_tile_to_build(LogicGlobals.start_tile, player)
+    else:
+        cluster_to_defend = POSITION_TO_CLUSTER[
+            unit.pos.find_closest_resource(
+                player=player,
+                game_map=LogicGlobals.game_state.map,
+                prefer_unlocked_resources=False
+            )
+        ]
+
+    new_city_pos = city_tile_to_build(cluster_to_defend)
     if new_city_pos is not None:
         unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
         LogicGlobals.pos_being_built.add(new_city_pos)
+
+    # TODO: May be better if a city requests a manager from a nearby unit
+    # if LogicGlobals.player.city_tile_count >= 5 or (LogicGlobals.game_state.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]) > GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] // 2:
+    #     for __, city in LogicGlobals.player.cities.items():
+    #         if not city.managers:
+    #             unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+    #             city.managers.add(unit.id)
+    #             return
+
+    # new_city_pos = city_tile_to_build(LogicGlobals.start_tile, player)
+    # if new_city_pos is not None:
+    #     unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
+    #     LogicGlobals.pos_being_built.add(new_city_pos)
 
 
 class LogicGlobals:
@@ -89,6 +117,7 @@ class LogicGlobals:
     cities = None
     pos_being_built = set()
     resource_cluster_to_defend = None
+    clusters_to_colonize = set()
 
 
 def agent(observation, configuration):
@@ -108,6 +137,8 @@ def agent(observation, configuration):
     width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
 
     if LogicGlobals.game_state.turn == 0:
+        for unit in player.units:
+            unit.has_colonized = True
         LogicGlobals.clusters = LogicGlobals.game_state.map.find_clusters()
         if LogicGlobals.start_tile is None:
             LogicGlobals.start_tile = Position(0, 0).find_closest_city_tile(player, LogicGlobals.game_state.map)
@@ -123,8 +154,11 @@ def agent(observation, configuration):
     for city_id, city in player.cities.items():
         city.update_resource_positions(LogicGlobals.game_state.map)
 
+    LogicGlobals.clusters_to_colonize = set()
     for cluster in LogicGlobals.clusters:
         cluster.update_state(game_map=LogicGlobals.game_state.map)
+        if cluster.type == Constants.RESOURCE_TYPES.WOOD and cluster.n_defended == 0:
+            LogicGlobals.clusters_to_colonize.add(cluster)
 
     if LogicGlobals.resource_cluster_to_defend is not None and (all(LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None for p in LogicGlobals.resource_cluster_to_defend.pos_to_defend) or LogicGlobals.resource_cluster_to_defend.total_amount <= 0):
         LogicGlobals.resource_cluster_to_defend = None
@@ -155,13 +189,19 @@ def agent(observation, configuration):
                 else:
                     unit.current_task = None
 
+    clusters_already_bing_colonized = {
+        c for c in LogicGlobals.clusters_to_colonize
+        if any(p in LogicGlobals.pos_being_built for p in c.pos_to_defend)
+    }
+    LogicGlobals.clusters_to_colonize = LogicGlobals.clusters_to_colonize - clusters_already_bing_colonized
+
     # for city_id, city in LogicGlobals.player.cities.items():
     #     print(f"Turn {LogicGlobals.game_state.turn} city {city_id} managers: {city.managers}", file=sys.stderr)
 
     for __, city in player.cities.items():
         for tile in city.citytiles:
             blocked_positions.discard(tile.pos)
-        print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=sys.stderr)
+        # print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=sys.stderr)
 
     for unit in player.units:
         if unit.current_task is None:
@@ -253,6 +293,48 @@ def agent(observation, configuration):
         #     actions.append(annotate.circle(pos.x, pos.y))
         # for pos in cluster.pos_to_defend:
         #     actions.append(annotate.x(pos.x, pos.y))
+
+    actions.append(annotate.sidetext("GOAL TASKS"))
+
+    for unit in player.units:
+        if unit.task_q:
+            actions.append(
+                annotate.sidetext(
+                    annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
+                )
+            )
+        else:
+            actions.append(
+                annotate.sidetext(
+                    f"{unit.id}: None"
+                )
+            )
+
+    actions.append(annotate.sidetext("TASK QUEUE"))
+
+    for unit in player.units:
+        if unit.task_q:
+            actions.append(
+                annotate.sidetext(
+                    # annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
+                    annotate.format_message(
+                        f"{unit.id}: " +
+                        " - ".join(
+                            [f"{t[0]} to {t[1]}"
+                             if t[0] == 'move' else f"{t[0]} at {t[1]}"
+                             for t in unit.task_q
+                             ]
+                        )
+                    )
+                )
+            )
+        else:
+            actions.append(
+                annotate.sidetext(
+                    f"{unit.id}: None"
+                )
+            )
+
     actions.append(annotate.sidetext("TASKS"))
 
     for unit in player.units:
