@@ -20,6 +20,7 @@ class ResourceCluster:
         self._resource_positions = dict()
         self.total_amount = -1
         self.pos_to_defend = []
+        self.pos_defended = []
         self.min_loc = None
         self.max_loc = None
 
@@ -77,9 +78,17 @@ class ResourceCluster:
 
             print(f"Num to block: {self.n_to_block}", file=sys.stderr)
 
+        for pos in self.pos_to_defend:
+            if game_map.get_cell_by_pos(pos).citytile is not None:
+                self.pos_defended.append(pos)
+
     @property
     def n_to_block(self):
         return len(self.pos_to_defend)
+
+    @property
+    def n_defended(self):
+        return len(self.pos_defended)
 
     @property
     def resource_positions(self):
