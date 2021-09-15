@@ -161,10 +161,10 @@ class Unit:
         # if action == ValidActions.BUILD:
         #     self.should_avoid_citytiles = True
         self.current_task = (action, target)
-        # print(f"New task was set for unit at {self.pos}: {action} with target {target}", file=sys.stderr)
+        print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
 
     def push_task(self, task):
-        self.task_q.append(self.current_task)
+        self.task_q.appendleft(self.current_task)
         self.current_task = task
 
     def propose_action(self, player, game_state):
@@ -213,8 +213,8 @@ class Unit:
                     return None, None
             elif self.pos != target_pos:
                 self.push_task((ValidActions.MOVE, target_pos))
-        else:
-            self.should_avoid_citytiles = False
+        # else:
+        #     self.should_avoid_citytiles = False
 
         action, target_pos = self.current_task
         if action == ValidActions.COLLECT:
@@ -223,7 +223,7 @@ class Unit:
 
         action, target_pos = self.current_task
         if action == ValidActions.MOVE:
-            if self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night and self.num_resources <GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1):
+            if (self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night) and (self.num_resources <GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
                 if closest_resource_pos is not None:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
