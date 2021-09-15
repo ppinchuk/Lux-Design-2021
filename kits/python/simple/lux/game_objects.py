@@ -181,7 +181,7 @@ class Unit:
 
         action, target = self.current_task
         if action == ValidActions.MANAGE:
-            if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=True) > 0 for p in  player.cities[target].resource_positions):
+            if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=False) > 0 for p in  player.cities[target].resource_positions):
                 for target_pos in player.cities[target].resource_positions:
                     if game_state.map.num_adjacent_resources(target_pos, do_wood_check=True) > 0:
                         break
@@ -190,13 +190,15 @@ class Unit:
                     target_pos = self.pos.find_closest_resource(
                         player, game_state.map, prefer_unlocked_resources=True
                     )
+                    if target_pos != self.pos:
+                        self.push_task((ValidActions.COLLECT, target_pos))
                 else:
                     target_pos = min(
                         [cell.pos for cell in player.cities[target].citytiles],
                         key=self.pos.distance_to
                     )
-            if target_pos != self.pos:
-                self.push_task((ValidActions.MOVE, target_pos))
+                    if target_pos != self.pos:
+                        self.push_task((ValidActions.MOVE, target_pos))
 
         action, target_pos = self.current_task
         if action == ValidActions.BUILD:
