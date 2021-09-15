@@ -41,22 +41,6 @@ class PositionToCluster(MemDict):
 POSITION_TO_CLUSTER = PositionToCluster()
 
 
-def city_tile_to_build_old(pos, player):
-    if pos is None:
-        return None
-    if LogicGlobals.resource_cluster_to_defend is None or LogicGlobals.resource_cluster_to_defend.total_amount <= 0:
-        resource_pos = pos.find_closest_resource(player, LogicGlobals.game_state.map, prefer_unlocked_resources=True)
-        # print(f"Resource position: {resource_pos.pos}", file=sys.stderr)
-        LogicGlobals.resource_cluster_to_defend = POSITION_TO_CLUSTER[resource_pos]
-        # print(f"Resource cluster pos to defend: {resource_cluster.pos_to_defend}", file=sys.stderr)
-
-    for pos in LogicGlobals.resource_cluster_to_defend.pos_to_defend:
-        cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
-        if cell.citytile is None and pos not in LogicGlobals.pos_being_built:
-            return cell.pos
-    return None
-
-
 def city_tile_to_build(cluster):
     for pos in cluster.pos_to_defend:
         cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
@@ -74,9 +58,13 @@ def set_unit_task(unit, player):
         return
 
     if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
-        cluster_to_defend = min(
+        # cluster_to_defend = min(
+        #     LogicGlobals.clusters_to_colonize,
+        #     key=lambda c: min(unit.pos.distance_to(p) for p in c.pos_to_defend)
+        # )
+        cluster_to_defend = max(
             LogicGlobals.clusters_to_colonize,
-            key=lambda c: min(unit.pos.distance_to(p) for p in c.pos_to_defend)
+            key=lambda c: c.current_score
         )
 
     else:
@@ -118,6 +106,7 @@ class LogicGlobals:
     pos_being_built = set()
     resource_cluster_to_defend = None
     clusters_to_colonize = set()
+    max_resource_cluster_amount = 0
 
 
 def agent(observation, configuration):
@@ -157,8 +146,17 @@ def agent(observation, configuration):
     LogicGlobals.clusters_to_colonize = set()
     for cluster in LogicGlobals.clusters:
         cluster.update_state(game_map=LogicGlobals.game_state.map)
-        if cluster.type == Constants.RESOURCE_TYPES.WOOD and cluster.n_defended == 0:
-            LogicGlobals.clusters_to_colonize.add(cluster)
+        if cluster.total_amount >= 0:
+            if cluster.type == Constants.RESOURCE_TYPES.URANIUM:
+                if LogicGlobals.unlocked_uranium:
+                    LogicGlobals.clusters_to_colonize.add(cluster)
+            elif cluster.type == Constants.RESOURCE_TYPES.COAL:
+                if LogicGlobals.unlocked_coal:
+                    LogicGlobals.clusters_to_colonize.add(cluster)
+            else:
+                LogicGlobals.clusters_to_colonize.add(cluster)
+        # if cluster.type == Constants.RESOURCE_TYPES.WOOD and cluster.n_defended == 0:
+        #     LogicGlobals.clusters_to_colonize.add(cluster)
 
     if LogicGlobals.resource_cluster_to_defend is not None and (all(LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None for p in LogicGlobals.resource_cluster_to_defend.pos_to_defend) or LogicGlobals.resource_cluster_to_defend.total_amount <= 0):
         LogicGlobals.resource_cluster_to_defend = None
@@ -192,8 +190,14 @@ def agent(observation, configuration):
     clusters_already_bing_colonized = {
         c for c in LogicGlobals.clusters_to_colonize
         if any(p in LogicGlobals.pos_being_built for p in c.pos_to_defend)
+        or any(p in player.city_pos for p in c.pos_defended)
     }
     LogicGlobals.clusters_to_colonize = LogicGlobals.clusters_to_colonize - clusters_already_bing_colonized
+    LogicGlobals.max_resource_cluster_amount = max(
+        [1] + [c.total_amount for c in LogicGlobals.clusters_to_colonize]
+    )
+    for c in LogicGlobals.clusters_to_colonize:
+        c.calculate_score(player, opponent, scaling_factor=LogicGlobals.max_resource_cluster_amount)
 
     # for city_id, city in LogicGlobals.player.cities.items():
     #     print(f"Turn {LogicGlobals.game_state.turn} city {city_id} managers: {city.managers}", file=sys.stderr)
@@ -269,7 +273,9 @@ def agent(observation, configuration):
                 if len(player.units) < player.city_tile_count:
                     actions.append(city_tile.build_worker())
                 else:
-                    actions.append(city_tile.research())
+                    if not player.researched_uranium():
+                        actions.append(city_tile.research())
+                        player.research_points += 1
 
     # DEBUG STUFF
 
@@ -280,13 +286,13 @@ def agent(observation, configuration):
     )
     actions.append(
         annotate.sidetext(
-            "Cluster - N_resource - N_defend",
+            "Cluster - N_resource - N_defend - Score",
         )
     )
     for cluster in LogicGlobals.clusters:
         actions.append(
             annotate.sidetext(
-                f"[{cluster.min_loc[0]:2d}; {cluster.min_loc[1]:2d}] - {cluster.total_amount:4d} - {cluster.n_to_block:1d}",
+                annotate.format_message(f"{cluster.center_pos} - {cluster.total_amount:4d} - {cluster.n_to_block:1d} - {cluster.current_score:0.5f}"),
             )
         )
         # for pos in cluster.resource_positions:

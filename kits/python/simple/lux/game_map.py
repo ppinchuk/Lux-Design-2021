@@ -26,12 +26,39 @@ class ResourceCluster:
         self.min_loc = None
         self.max_loc = None
         self.center_pos = None
+        self.current_score = 0
 
     def __eq__(self, other) -> bool:
         return self.resource_positions == other.resource_positions
 
     def __hash__(self):
         return hash(tuple(self._resource_positions.keys()))
+
+    def calculate_score(self, player, opponent, scaling_factor=1):
+        # From list 'L' of clusters with type (wood, coal, uranium) and number of resources in cluster:
+        # 1.) Iterate through 'L'  and compare type to number of research points and if compatible, add the number of resources of cluster to list 'K'
+        # 2.) Reorder 'K' by number of resources
+        # 3.) Divide all by value of first item
+        # 4.) If cluster has any cities formed then divide by number of cities - 1 otherwise
+        # 5.) Divide by distance to OUR nearest city outside of cluster
+        # 6.) Multiply by distance to nearest opponent city or worker
+        # 7.) Send worker to cluster with highest value
+
+        self.current_score = self.total_amount / scaling_factor
+        self.current_score /= max(1, len(self.pos_defended))
+        self.current_score /= min(
+            [1]
+            +
+            [self.center_pos.distance_to(ct.pos) for city in player.cities.values() for ct in city.citytiles]
+        )
+        self.current_score *= min(
+            [1]
+            +
+            [self.center_pos.distance_to(ct.pos) for city in opponent.cities.values() for ct in city.citytiles]
+            +
+            [self.center_pos.distance_to(unit.pos) for unit in opponent.units]
+        )
+        return self.current_score
 
     def add_resource_positions(self, *positions):
         for pos in positions:
