@@ -219,6 +219,20 @@ class Unit:
             if not self.pos.is_adjacent(target_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
                 self.push_task((ValidActions.MOVE, target_pos))
 
+        action, target_pos = self.current_task
+        if action == ValidActions.MOVE:
+            if self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night and self.num_resources <GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1):
+                closest_resource_pos = self.pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
+                if closest_resource_pos is not None:
+                    self.push_task((ValidActions.COLLECT, closest_resource_pos))
+                else:
+                    return None, None
+
+        action, target_pos = self.current_task
+        if action == ValidActions.COLLECT:
+            if not self.pos.is_adjacent(target_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
+                self.push_task((ValidActions.MOVE, target_pos))
+
         # if action in ValidActions.can_be_adjacent():
         #     if not self.pos.is_adjacent(target_pos):
         #         return ValidActions.MOVE, target_pos
