@@ -28,7 +28,7 @@ class ResourceCluster:
         return self.resource_positions == other.resource_positions
 
     def __hash__(self):
-        return hash(self._resource_positions.keys())
+        return hash(tuple(self._resource_positions.keys()))
 
     def add_resource_positions(self, *positions):
         for pos in positions:
@@ -143,6 +143,7 @@ class GameMap:
         return sum(
             self.get_cell_by_pos(p).has_resource(do_wood_check=do_wood_check)
             for p in pos.adjacent_positions(include_center=include_center)
+            if self.is_within_bounds(p)
         )
 
     def resources(self, return_positions_only=False):
