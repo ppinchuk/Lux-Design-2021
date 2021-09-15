@@ -237,6 +237,22 @@ class Position:
             return Position(self.x, self.y)
 
     def find_closest_city_tile(self, player, game_map):
+        """ Find the closest city tile to this position.
+
+        Parameters
+        ----------
+        player : Player object
+            Owner of the city tiles to consider.
+        game_map : :GameMap:
+            Map containing position and resources.
+
+        Returns
+        -------
+        Position
+            Position of closest city tile.
+
+        """
+
         if self._closest_city_pos is None or game_map.get_cell_by_pos(self._closest_city_pos).citytile is None:
             if len(player.cities) > 0:
                 closest_dist = math.inf
@@ -249,18 +265,27 @@ class Position:
         return self._closest_city_pos
 
     def find_closest_resource(self, player, game_map, prefer_unlocked_resources=False):
-        """
+        """ Find the closest resource to this position.
 
         Parameters
         ----------
-        game_map
-        player
-        prefer_unlocked_resources
+        player : Player object
+            Player wanting to find the closest resource.
+            Used to determine if player can mind coal or uranium.
+        game_map : :GameMap:
+            Map containing position and resources.
+        prefer_unlocked_resources : bool, optional
+            Option to prefer the most fuel-efficient resources,
+            if they are unlocked.
+
 
         Returns
         -------
+        Position
+            Position of closest resource.
 
         """
+
         if self._closest_resource_pos is None or not game_map.get_cell_by_pos(self._closest_resource_pos).has_resource():
             closest_dist = math.inf
             for resource_tile in game_map.resources():
