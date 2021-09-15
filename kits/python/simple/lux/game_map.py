@@ -55,8 +55,8 @@ class ResourceCluster:
             self.min_loc = (min(x_vals), min(y_vals))
             self.max_loc = (max(x_vals), max(y_vals))
             self.center_pos = Position(
-                (self.max_loc[0] - self.min_loc[0]) // 2,
-                (self.max_loc[1] - self.min_loc[1]) // 2,
+                (self.max_loc[0] - self.min_loc[0]) // 2 + self.min_loc[0],
+                (self.max_loc[1] - self.min_loc[1]) // 2 + self.min_loc[1],
             )
 
             self.pos_to_defend += [
@@ -85,9 +85,10 @@ class ResourceCluster:
 
             print(f"Num to block: {self.n_to_block}", file=sys.stderr)
 
-        for pos in self.pos_to_defend:
-            if game_map.get_cell_by_pos(pos).citytile is not None:
-                self.pos_defended.append(pos)
+        for x in range(self.min_loc[0], self.max_loc[0] + 1):
+            for y in range(self.min_loc[1], self.max_loc[1] + 1):
+                if game_map.get_cell(x, y).citytile is not None:
+                    self.pos_defended.append(Position(x, y))
 
     @property
     def n_to_block(self):
