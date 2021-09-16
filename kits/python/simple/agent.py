@@ -57,6 +57,19 @@ def set_unit_task(unit, player):
     if not unit.can_act():
         return
 
+    for __, city in player.cities.items():
+        if LogicGlobals.unlocked_uranium and Constants.RESOURCE_TYPES.URANIUM in city.neighbor_resource_types:
+            if len(city.managers) < city.light_upkeep / (15 * 80) + 1:
+                unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+                city.managers.add(unit.id)
+                return
+
+        if LogicGlobals.unlocked_coal and Constants.RESOURCE_TYPES.COAL in city.neighbor_resource_types:
+            if len(city.managers) < city.light_upkeep / (15 * 50) + 1:
+                unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+                city.managers.add(unit.id)
+                return
+
     if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
         # cluster_to_defend = min(
         #     LogicGlobals.clusters_to_colonize,

@@ -34,6 +34,7 @@ class City:
         self.light_upkeep = light_upkeep
         self.managers = set()
         self.resource_positions = []
+        self.neighbor_resource_types = set()
 
     def _add_city_tile(self, x, y, cooldown):
         ct = CityTile(self.team, self.cityid, x, y, cooldown)
@@ -54,6 +55,10 @@ class City:
         self.resource_positions = [
             x[0] for x in sorted(num_resources_for_tile, key=lambda x: x[1])
         ][::-1]
+
+        self.neighbor_resource_types = set()
+        for tile in self.citytiles:
+            self.neighbor_resource_types = self.neighbor_resource_types | game_map.adjacent_resource_types(tile.pos, include_center=False)
 
 
 class CityTile:
@@ -162,7 +167,9 @@ class Unit:
         # if action == ValidActions.BUILD:
         #     self.should_avoid_citytiles = True
         self.current_task = (action, target)
-        print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
+        if action == ValidActions.MANAGE:
+            print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
+        # print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
 
     def push_task(self, task):
         self.task_q.appendleft(self.current_task)

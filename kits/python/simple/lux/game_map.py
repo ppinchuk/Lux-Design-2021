@@ -49,12 +49,12 @@ class ResourceCluster:
         self.current_score /= min(
             [1]
             +
-            [self.center_pos.distance_to(ct.pos) for city in player.cities.values() for ct in city.citytiles]
+            [self.center_pos.distance_to(pos) for pos in player.city_pos]
         )
         self.current_score *= min(
             [1]
             +
-            [self.center_pos.distance_to(ct.pos) for city in opponent.cities.values() for ct in city.citytiles]
+            [self.center_pos.distance_to(pos) for pos in opponent.city_pos]
             +
             [self.center_pos.distance_to(unit.pos) for unit in opponent.units]
         )
@@ -181,6 +181,13 @@ class GameMap:
             if self.is_within_bounds(p)
         )
 
+    def adjacent_resource_types(self, pos, include_center=True):
+        return set(
+            self.get_cell_by_pos(p).resource.type
+            for p in pos.adjacent_positions(include_center=include_center)
+            if self.is_within_bounds(p) and self.get_cell_by_pos(p).has_resource(do_wood_check=True)
+        )
+
     def resources(self, return_positions_only=False):
         if not self._resources:
             self._resources = [
@@ -305,12 +312,13 @@ class Position:
         if self._closest_city_pos is None or game_map.get_cell_by_pos(self._closest_city_pos).citytile is None:
             if len(player.cities) > 0:
                 closest_dist = math.inf
-                for k, city in player.cities.items():
-                    for city_tile in city.citytiles:
-                        dist = city_tile.pos.distance_to(self)
-                        if dist < closest_dist:
-                            closest_dist = dist
-                            self._closest_city_pos = city_tile.pos
+                for pos in player.city_pos:
+                    dist = pos.distance_to(self)
+                    if dist < closest_dist:
+                        closest_dist = dist
+                        self._closest_city_pos = pos
+            else:
+                return None
         return self._closest_city_pos
 
     def find_closest_resource(self, player, game_map, prefer_unlocked_resources=False):
@@ -360,7 +368,7 @@ class Position:
                         closest_dist = dist
                         self._closest_resource_pos[resource] = resource_tile.pos
         return min(
-            [self._closest_resource_pos[r] for r in  resources_to_consider],
+            [self._closest_resource_pos[r] for r in resources_to_consider],
             key=self.distance_to
         )
 
