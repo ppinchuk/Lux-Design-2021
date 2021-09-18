@@ -44,7 +44,7 @@ POSITION_TO_CLUSTER = PositionToCluster()
 def city_tile_to_build(cluster):
     for pos in cluster.pos_to_defend:
         cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
-        if cell.citytile is None and pos not in LogicGlobals.pos_being_built:
+        if cell.is_empty() and pos not in LogicGlobals.pos_being_built:
             return cell.pos
     return None
 
@@ -158,7 +158,9 @@ def agent(observation, configuration):
 
     LogicGlobals.clusters_to_colonize = set()
     for cluster in LogicGlobals.clusters:
-        cluster.update_state(game_map=LogicGlobals.game_state.map)
+        cluster.update_state(
+            game_map=LogicGlobals.game_state.map, opponent=opponent
+        )
         if cluster.total_amount >= 0:
             if cluster.type == Constants.RESOURCE_TYPES.URANIUM:
                 if LogicGlobals.unlocked_uranium:

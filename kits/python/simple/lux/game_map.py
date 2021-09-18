@@ -1,6 +1,7 @@
 from typing import List
 import math
 import sys
+import statistics
 
 from .constants import Constants, ALL_DIRECTIONS
 
@@ -64,7 +65,7 @@ class ResourceCluster:
         for pos in positions:
             self._resource_positions[pos] = None
 
-    def update_state(self, game_map):
+    def update_state(self, game_map, opponent):
         cells = {
             game_map.get_cell_by_pos(p)
             for p in self._resource_positions.keys()
@@ -112,6 +113,21 @@ class ResourceCluster:
 
             print(f"Num to block: {self.n_to_block}", file=sys.stderr)
 
+            opponent_x_vals, opponent_y_vals = [], []
+            for unit in opponent.units:
+                opponent_x_vals.append(unit.pos.x)
+                opponent_y_vals.append(unit.pos.y)
+            for p in opponent.city_pos:
+                opponent_x_vals.append(p.x)
+                opponent_y_vals.append(p.y)
+            opponent_med_pos = Position(
+                statistics.median(opponent_x_vals),
+                statistics.median(opponent_y_vals),
+            )
+            self.pos_to_defend = sorted(
+                self.pos_to_defend, key=opponent_med_pos.distance_to
+            )
+
         for x in range(self.min_loc[0], self.max_loc[0] + 1):
             for y in range(self.min_loc[1], self.max_loc[1] + 1):
                 if game_map.get_cell(x, y).citytile is not None:
@@ -142,6 +158,9 @@ class Cell:
             return self.resource is not None and ((self.resource.type != WOOD and self.resource.amount > 0) or (self.resource.type == WOOD and self.resource.amount >= 500))
         else:
             return self.resource is not None and self.resource.amount > 0
+
+    def is_empty(self):
+        return self.citytile is None and not self.has_resource()
 
 
 class GameMap:
