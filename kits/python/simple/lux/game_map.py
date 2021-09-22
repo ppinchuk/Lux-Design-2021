@@ -32,6 +32,7 @@ class ResourceCluster:
         self.center_pos = None
         self.current_score = 0
         self.n_workers_spawned = 0
+        self.n_workers_sent_to_colonize = 0
 
         for pos in positions:
             self._resource_positions[pos] = None
@@ -234,16 +235,30 @@ class Cell:
         return self.citytile is None and not self.has_resource()
 
 
+MAP_CACHE = {}
+
+
 class GameMap:
     def __init__(self, width, height):
         self.height = height
         self.width = width
         self.map: List[List[Cell]] = [None] * height
         self._resources = []
+        self.resource_clusters = None
         for y in range(0, self.height):
             self.map[y] = [None] * width
             for x in range(0, self.width):
                 self.map[y][x] = Cell(x, y)
+
+        self.__dict__.update(MAP_CACHE.get('map', {}))
+
+    def __del__(self):
+        MAP_CACHE['map'] = {
+            key: self.__dict__[key]
+            for key in [
+                'resource_clusters',
+            ]
+        }
 
     def get_cell_by_pos(self, pos) -> Cell:
         return self.map[pos.y][pos.x]
@@ -300,15 +315,35 @@ class GameMap:
 
     def find_clusters(self):
         resource_pos_found = set()
-        resource_clusters = []
+        self.resource_clusters = set()
         for cell in self.cells():
             if cell.has_resource() and cell.pos not in resource_pos_found:
                 new_cluster_pos = self._check_for_cluster(cell.pos, {cell.pos}, cell.resource.type)
                 resource_pos_found = resource_pos_found | new_cluster_pos
                 new_cluster = ResourceCluster(cell.resource.type, new_cluster_pos)
-                resource_clusters.append(new_cluster)
+                self.resource_clusters.add(new_cluster)
 
-        return resource_clusters
+        return self.resource_clusters
+
+    def update_clusters(self, opponent):
+        clusters_to_discard = set()
+        for cluster in self.resource_clusters:
+            cluster.update_state(
+                game_map=self, opponent=opponent
+            )
+            if cluster.total_amount <= 0:
+                clusters_to_discard.add(cluster)
+        self.resource_clusters = self.resource_clusters - clusters_to_discard
+
+    def position_to_cluster(self, pos):
+        if not self.resource_clusters:
+            print("No clusters found!", file=sys.stderr)
+            return None
+        for cluster in self.resource_clusters:
+            if (cluster.min_loc[0] - 1 <= pos.x <= cluster.max_loc[0] + 1) and (
+                    cluster.min_loc[1] - 1 <= pos.y <= cluster.max_loc[1] + 1):
+                return cluster
+        return None
 
     def positions(self):
         """ Iterate over all positions of the map. """
