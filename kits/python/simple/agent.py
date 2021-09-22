@@ -4,12 +4,9 @@ from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, 
 from collections import Counter, UserDict
 from itertools import chain
 import sys
-from lux.game_constants import GAME_CONSTANTS
+from lux.game_constants import STRATEGY_CONSTANTS
 from lux import annotate
 import math
-
-
-N_UNITS_SPAWN_BEFORE_COLONIZE = 4  # 2  # 4
 
 ### Define helper functions
 
@@ -28,6 +25,7 @@ def city_tile_to_build(cluster):
 # Prefer 2x2 clusters
 
 def starter_strategy(unit, player):
+    LogicGlobals.current_strategy = 'Starter'
     if not unit.can_act():
         return
 
@@ -58,7 +56,7 @@ def starter_strategy(unit, player):
         closest_cluster = LogicGlobals.game_state.map.position_to_cluster(
             unit.pos.find_closest_city_tile(player, game_map=LogicGlobals.game_state.map)
         )
-        if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize < closest_cluster.n_workers_spawned / N_UNITS_SPAWN_BEFORE_COLONIZE):
+        if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize < closest_cluster.n_workers_spawned / STRATEGY_CONSTANTS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
             cluster_to_defend = max(
                 LogicGlobals.clusters_to_colonize,
                 key=lambda c: c.current_score
@@ -100,6 +98,36 @@ def starter_strategy(unit, player):
     #     LogicGlobals.pos_being_built.add(new_city_pos)
 
 
+def time_based_strategy(unit, player):
+    """
+
+    0.) Stop all city research efforts
+    1.) Choose center of mass (COM) point to all collectable resource clusters
+         available (most likely all the wood ones)
+    2.) Move `LAST_DITCH_NUMBER_OF_WORKERS` number of closest workers with 100 wood units to COM
+    3.) Build fully connected city (not around a cluster just a 'circular' form)
+    4.) Assign remainder of workers to dump their resources into city for fuel
+    5.) Spawn workers at all cities
+    6.) Divide workers into groups based on number of wood clusters available
+    7.) Move workers to available resources and collect then return
+    8.) Have `LAST_DITCH_RESOURCE_DUMP_RATIO` amount of workers dump resources as fuel
+    9.) Have remainder build cities
+    10.) Repeat 5.) - 10.)
+
+    *** NOTE: Workers and carts need to move to next cluster if current cluster is
+         depleted ***
+
+
+    Parameters
+    ----------
+    unit
+    player
+
+
+    """
+    LogicGlobals.current_strategy = 'Time-Based'
+
+
 def set_unit_task(unit, player):
     starter_strategy(unit, player)
 
@@ -115,6 +143,7 @@ class LogicGlobals:
     resource_cluster_to_defend = None
     clusters_to_colonize = set()
     max_resource_cluster_amount = 0
+    current_strategy = None
 
 
 def agent(observation, configuration):
@@ -301,6 +330,11 @@ def agent(observation, configuration):
 
     # DEBUG STUFF
 
+    actions.append(
+        annotate.sidetext(
+            f"Current Strategy: {LogicGlobals.current_strategy}",
+        )
+    )
     actions.append(
         annotate.sidetext(
             f"Found {len(LogicGlobals.game_state.map.resource_clusters)} clusters",

@@ -4,10 +4,9 @@ from collections import deque
 
 from .constants import Constants, ValidActions
 from .game_map import Position
-from .game_constants import GAME_CONSTANTS
+from .game_constants import GAME_CONSTANTS, STRATEGY_CONSTANTS
 
 UNIT_TYPES = Constants.UNIT_TYPES
-BUILD_NIGHT_BUFFER = 3  # 1
 
 
 class Player:
@@ -122,6 +121,7 @@ class Unit:
                 'did_just_transfer': False,
                 'turns_spent_waiting_to_move': 0,
                 'should_avoid_citytiles': False,
+                'was_avoiding_citytiles': False,
                 'has_colonized': False,
             })
         )
@@ -135,7 +135,8 @@ class Unit:
                 'did_just_transfer',
                 'turns_spent_waiting_to_move',
                 'should_avoid_citytiles',
-                'has_colonized'
+                'was_avoiding_citytiles',
+                'has_colonized',
             ]
         }
 
@@ -215,14 +216,17 @@ class Unit:
         if action == ValidActions.BUILD:
             self.should_avoid_citytiles = True
             if not self.has_enough_resources_to_build:
-                closest_resource_pos = target_pos.find_closest_wood(game_state.map)
+                if self.num_resources >= 0.75 * GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
+                    closest_resource_pos = target_pos.find_closest_resource(player, game_state.map)
+                else:
+                    closest_resource_pos = target_pos.find_closest_wood(game_state.map)
                 if closest_resource_pos is not None:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
                 else:
                     return None, None
             elif self.pos != target_pos:
                 self.push_task((ValidActions.MOVE, target_pos))
-            if game_state.turns_until_next_night < BUILD_NIGHT_BUFFER:
+            if game_state.turns_until_next_night < STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']:
                 return None, None
         # else:
         #     self.should_avoid_citytiles = False

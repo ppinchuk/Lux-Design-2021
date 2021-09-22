@@ -5,13 +5,13 @@ import statistics
 from random import shuffle
 
 from .constants import Constants, ALL_DIRECTIONS
+from .game_constants import STRATEGY_CONSTANTS
 
 DIRECTIONS = Constants.DIRECTIONS
 WOOD = Constants.RESOURCE_TYPES.WOOD
 COAL = Constants.RESOURCE_TYPES.COAL
 URANIUM = Constants.RESOURCE_TYPES.URANIUM
-
-MAX_DISTANCE_FROM_EDGE = 2
+MAX_DISTANCE_FROM_EDGE = STRATEGY_CONSTANTS['MAX_DISTANCE_FROM_EDGE']
 
 
 class Resource:
@@ -508,7 +508,7 @@ class Position:
             resources_to_consider = [WOOD]
             if player.researched_coal():
                 resources_to_consider.append(COAL)
-            if player.researched_uranium:
+            if player.researched_uranium():
                 resources_to_consider.append(URANIUM)
 
         return self._find_closest_resource(resources_to_consider, game_map)
