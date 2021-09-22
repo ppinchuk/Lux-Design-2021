@@ -2,6 +2,7 @@ from typing import List
 import math
 import sys
 import statistics
+from random import shuffle
 
 from .constants import Constants, ALL_DIRECTIONS
 
@@ -461,7 +462,7 @@ class Position:
             key=self.distance_to
         )
 
-    def direction_to(self, target_pos: 'Position', pos_to_check=None) -> DIRECTIONS:
+    def direction_to(self, target_pos: 'Position', pos_to_check=None, do_shuffle=True) -> DIRECTIONS:
         """ Return closest position to target_pos from this position
 
         Parameters
@@ -471,6 +472,9 @@ class Position:
         pos_to_check : dict
             Dictionary with keys as directions and values as positions
             corresponding to a move in that direction.
+        do_shuffle : bool
+            Option to shuffle directions so that a random
+            one is chosen when multiple have a min distance.
 
         Returns
         -------
@@ -488,7 +492,11 @@ class Position:
                 for direction in ALL_DIRECTIONS
             }
 
-        dists = {d: target_pos.distance_to(p) for d, p in pos_to_check.items()}
+        dir_pos = list(pos_to_check.items())
+        if do_shuffle:
+            shuffle(dir_pos)
+
+        dists = {d: target_pos.distance_to(p) for d, p in dir_pos}
         return min(dists, key=dists.get)
 
     def __repr__(self) -> str:
