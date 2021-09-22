@@ -7,6 +7,7 @@ from .game_map import Position
 from .game_constants import GAME_CONSTANTS
 
 UNIT_TYPES = Constants.UNIT_TYPES
+BUILD_NIGHT_BUFFER = 3 # 1
 
 
 class Player:
@@ -221,7 +222,7 @@ class Unit:
                     return None, None
             elif self.pos != target_pos:
                 self.push_task((ValidActions.MOVE, target_pos))
-            if game_state.turns_until_next_night < 1:
+            if game_state.turns_until_next_night < BUILD_NIGHT_BUFFER:
                 return None, None
         # else:
         #     self.should_avoid_citytiles = False
