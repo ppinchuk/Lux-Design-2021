@@ -174,11 +174,31 @@ class Unit:
         # print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
 
     def push_task(self, task):
-        self.task_q.appendleft(self.current_task)
+        if self.current_task is not None:
+            self.task_q.appendleft(self.current_task)
         self.current_task = task
 
     def propose_action(self, player, game_state):
-        if self.current_task is None or not self.can_act():
+
+        # This does not currently work
+        # if game_state.turns_until_next_night == 3:
+        #     print(f"STARTING THE AVOID ON TURN {game_state.turn}", file=sys.stderr)
+        #     self.was_avoiding_citytiles = self.should_avoid_citytiles
+        #     self.should_avoid_citytiles = True
+        # elif game_state.turns_until_next_night == 30:
+        #     print(f"RESETTING THE AVOID ON TURN {game_state.turn}", file=sys.stderr)
+        #     self.should_avoid_citytiles = self.was_avoiding_citytiles
+        #     self.was_avoiding_citytiles = False
+
+        if not self.can_act():
+            return None, None
+
+        # if self.should_avoid_citytiles and game_state.map.get_cell_by_pos(self.pos).citytile is not None:
+        #     for pos in self.pos.adjacent_positions(include_center=False):
+        #         if game_state.map.get_cell_by_pos(pos).citytile is None:
+        #             self.push_task((ValidActions.MOVE, pos))
+
+        if self.current_task is None:
             return None, None
 
         action, target = self.current_task
