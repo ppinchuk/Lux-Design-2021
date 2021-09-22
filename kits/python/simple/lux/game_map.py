@@ -481,7 +481,7 @@ class Position:
         """
         return self._find_closest_resource([WOOD], game_map)
 
-    def find_closest_resource(self, player, game_map, prefer_unlocked_resources=False):
+    def find_closest_resource(self, player, game_map, r_type=None):
         """ Find the closest resource to this position.
 
         Parameters
@@ -491,9 +491,9 @@ class Position:
             Used to determine if player can mind coal or uranium.
         game_map : :GameMap:
             Map containing position and resources.
-        prefer_unlocked_resources : bool, optional
-            Option to prefer the most fuel-efficient resources,
-            if they are unlocked.
+        r_type : Constants.RESOURCE_TYPES, optional
+            Type of resource to look for. If `None`,
+            all resources are considered.
 
         Returns
         -------
@@ -502,13 +502,8 @@ class Position:
 
         """
 
-        if prefer_unlocked_resources:
-            if player.researched_uranium():
-                resources_to_consider = [URANIUM]
-            elif player.researched_coal():
-                resources_to_consider = [COAL]
-            else:
-                resources_to_consider = [WOOD]
+        if r_type is not None:
+            resources_to_consider = [r_type]
         else:
             resources_to_consider = [WOOD]
             if player.researched_coal():

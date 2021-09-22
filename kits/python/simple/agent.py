@@ -27,8 +27,7 @@ def city_tile_to_build(cluster):
 # if our cluster is separate from other base, build around them.
 # Prefer 2x2 clusters
 
-
-def set_unit_task(unit, player):
+def starter_strategy(unit, player):
     if not unit.can_act():
         return
 
@@ -71,7 +70,6 @@ def set_unit_task(unit, player):
                 unit.pos.find_closest_resource(
                     player=player,
                     game_map=LogicGlobals.game_state.map,
-                    prefer_unlocked_resources=False
                 )
             )
 
@@ -80,7 +78,6 @@ def set_unit_task(unit, player):
             unit.pos.find_closest_resource(
                 player=player,
                 game_map=LogicGlobals.game_state.map,
-                prefer_unlocked_resources=False
             )
         )
 
@@ -101,6 +98,10 @@ def set_unit_task(unit, player):
     # if new_city_pos is not None:
     #     unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
     #     LogicGlobals.pos_being_built.add(new_city_pos)
+
+
+def set_unit_task(unit, player):
+    starter_strategy(unit, player)
 
 
 class LogicGlobals:

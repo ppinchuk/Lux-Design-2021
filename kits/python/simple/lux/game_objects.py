@@ -199,7 +199,7 @@ class Unit:
             else:
                 if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"]:
                     target_pos = self.pos.find_closest_resource(
-                        player, game_state.map, prefer_unlocked_resources=True
+                        player, game_state.map
                     )
                     if target_pos != self.pos:
                         self.push_task((ValidActions.COLLECT, target_pos))
@@ -215,7 +215,7 @@ class Unit:
         if action == ValidActions.BUILD:
             self.should_avoid_citytiles = True
             if not self.has_enough_resources_to_build:
-                closest_resource_pos = target_pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
+                closest_resource_pos = target_pos.find_closest_wood(game_state.map)
                 if closest_resource_pos is not None:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
                 else:
@@ -231,7 +231,7 @@ class Unit:
         if action == ValidActions.COLLECT:
             if game_state.map.get_cell_by_pos(target_pos).resource is None:
                 target_pos = target_pos.find_closest_resource(
-                    player, game_state.map, prefer_unlocked_resources=False
+                    player, game_state.map
                 )
                 self.current_task = (action, target_pos)
                 if target_pos is not None:
@@ -244,7 +244,7 @@ class Unit:
         action, target_pos = self.current_task
         if action == ValidActions.MOVE:
             if (self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
-                closest_resource_pos = self.pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
+                closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
                 if closest_resource_pos is not None and closest_resource_pos != target_pos:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
                 else:
