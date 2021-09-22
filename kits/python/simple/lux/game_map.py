@@ -514,7 +514,7 @@ class Position:
             if player.researched_coal():
                 resources_to_consider.append(COAL)
             if player.researched_uranium:
-                resources_to_consider.append(COAL)
+                resources_to_consider.append(URANIUM)
 
         return self._find_closest_resource(resources_to_consider, game_map)
 
