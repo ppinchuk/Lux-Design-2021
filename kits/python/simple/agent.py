@@ -146,21 +146,7 @@ class LogicGlobals:
     current_strategy = None
 
 
-def agent(observation, configuration):
-
-    ### Do not edit ###
-    if observation["step"] == 0:
-        LogicGlobals.game_state._initialize(observation["updates"])
-        LogicGlobals.game_state._update(observation["updates"][2:], observation)
-        LogicGlobals.game_state.id = observation.player
-    else:
-        LogicGlobals.game_state._update(observation["updates"], observation)
-
-    ### AI Code goes down here! ###
-    player = LogicGlobals.player = LogicGlobals.game_state.players[observation.player]
-    opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
-    width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
-
+def update_logic_globals(player):
     if LogicGlobals.game_state.turn == 0:
         for unit in player.units:
             unit.has_colonized = True
@@ -193,10 +179,13 @@ def agent(observation, configuration):
         # if cluster.type == Constants.RESOURCE_TYPES.WOOD and cluster.n_defended == 0:
         #     LogicGlobals.clusters_to_colonize.add(cluster)
 
-    if LogicGlobals.resource_cluster_to_defend is not None and (all(LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None for p in LogicGlobals.resource_cluster_to_defend.pos_to_defend) or LogicGlobals.resource_cluster_to_defend.total_amount <= 0):
+    if LogicGlobals.resource_cluster_to_defend is not None and (all(
+            LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None for p in
+            LogicGlobals.resource_cluster_to_defend.pos_to_defend) or LogicGlobals.resource_cluster_to_defend.total_amount <= 0):
         LogicGlobals.resource_cluster_to_defend = None
 
-    actions = []
+
+def gather_turn_information(player, opponent):
     blocked_positions = set()
     enemy_blocked_positions = set()
 
@@ -254,7 +243,29 @@ def agent(observation, configuration):
     #             blocked_positions.discard(tile.pos)
     #         else:
     #             blocked_positions.add(tile.pos)
-        # print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=sys.stderr)
+    # print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=sys.stderr)
+
+    return blocked_positions, enemy_blocked_positions
+
+
+def agent(observation, configuration):
+
+    ### Do not edit ###
+    if observation["step"] == 0:
+        LogicGlobals.game_state._initialize(observation["updates"])
+        LogicGlobals.game_state._update(observation["updates"][2:], observation)
+        LogicGlobals.game_state.id = observation.player
+    else:
+        LogicGlobals.game_state._update(observation["updates"], observation)
+
+    ### AI Code goes down here! ###
+    player = LogicGlobals.player = LogicGlobals.game_state.players[observation.player]
+    opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
+    width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
+    update_logic_globals(player)
+
+    actions = []
+    blocked_positions, enemy_blocked_positions = gather_turn_information(player, opponent)
 
     for unit in player.units:
         if unit.current_task is None:
