@@ -457,10 +457,13 @@ class Position:
                     if dist < closest_dist:
                         closest_dist = dist
                         self._closest_resource_pos[resource] = resource_tile.pos
-        return min(
-            [self._closest_resource_pos[r] for r in resources_to_consider],
-            key=self.distance_to
-        )
+        if resources_to_consider:
+            return min(
+                [self._closest_resource_pos[r] for r in resources_to_consider],
+                key=self.distance_to
+            )
+        else:
+            return None
 
     def direction_to(self, target_pos: 'Position', pos_to_check=None, do_shuffle=True) -> DIRECTIONS:
         """ Return closest position to target_pos from this position
