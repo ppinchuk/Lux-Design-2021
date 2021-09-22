@@ -178,6 +178,7 @@ def agent(observation, configuration):
 
     actions = []
     blocked_positions = set()
+    enemy_blocked_positions = set()
 
     # Not sure if this is good or not
     # for cell in LogicGlobals.game_state.map.cells():
@@ -188,6 +189,11 @@ def agent(observation, configuration):
     for unit in opponent.units:
         # TODO: This may cause issues in the endgame
         blocked_positions = blocked_positions | unit.pos.adjacent_positions()
+        enemy_blocked_positions = enemy_blocked_positions | unit.pos.adjacent_positions()
+
+    for __, city in opponent.cities.items():
+        for tile in city.citytiles:
+            enemy_blocked_positions.add(tile.pos)
 
     LogicGlobals.pos_being_built = set()
     for unit in player.units:
@@ -253,6 +259,8 @@ def agent(observation, configuration):
             pos_to_check = {}
             for direction in ALL_DIRECTIONS:
                 new_pos = unit.pos.translate(direction, 1)
+                if new_pos in enemy_blocked_positions:
+                    continue
                 if not LogicGlobals.game_state.map.is_within_bounds(new_pos):
                     continue
                 pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
@@ -318,6 +326,12 @@ def agent(observation, configuration):
     actions.append(annotate.sidetext("GOAL TASKS"))
 
     for unit in player.units:
+        # if unit.current_task is not None:
+        #     __, target = unit.current_task
+        #     if type(target) is Position:
+        #         actions.append(
+        #             annotate.line(unit.pos.x, unit.pos.y, target.x, target.y)
+        #         )
         if unit.task_q:
             actions.append(
                 annotate.sidetext(
