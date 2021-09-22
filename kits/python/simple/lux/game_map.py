@@ -64,6 +64,7 @@ class ResourceCluster:
         return self.current_score
 
     def add_resource_positions(self, *positions):
+        self._resource_positions = dict()
         for pos in positions:
             self._resource_positions[pos] = None
 
@@ -72,13 +73,24 @@ class ResourceCluster:
             game_map.get_cell_by_pos(p)
             for p in self._resource_positions.keys()
             if game_map.is_within_bounds(p)
-
         }
-        self.total_amount = sum(
-            cell.resource.amount for cell in cells if cell.resource is not None
-        )
 
-        if not self.pos_to_defend:
+        cells = {
+            c for c in cells if c.resource is not None
+        }
+
+        self.total_amount = sum(
+            cell.resource.amount for cell in cells # if cell.resource is not None
+        ) if cells else 0
+
+        if not cells:
+            self._resource_positions = dict()
+            self.pos_to_defend = []
+        elif not self.pos_to_defend or len(cells) != len(self._resource_positions):
+            self._resource_positions = dict()
+            for cell in cells:
+                self._resource_positions[cell.pos] = None
+
             x_vals = [p.x for p in self._resource_positions.keys()]
             y_vals = [p.y for p in self._resource_positions.keys()]
 
