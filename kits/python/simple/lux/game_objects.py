@@ -228,7 +228,16 @@ class Unit:
 
         action, target_pos = self.current_task
         if action == ValidActions.COLLECT:
-            if not self.pos.is_adjacent(target_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
+            if game_state.map.get_cell_by_pos(target_pos).resource is None:
+                target_pos = target_pos.find_closest_resource(
+                    player, game_state.map, prefer_unlocked_resources=False
+                )
+                self.current_task = (action, target_pos)
+                if target_pos is not None:
+                    self.push_task((ValidActions.MOVE, target_pos))
+                else:
+                    print(f"Unit {self.id} wants to collect but cannot find any resources!", file=sys.stderr)
+            elif not self.pos.is_adjacent(target_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
                 self.push_task((ValidActions.MOVE, target_pos))
 
         action, target_pos = self.current_task
