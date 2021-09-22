@@ -7,7 +7,7 @@ from .game_map import Position
 from .game_constants import GAME_CONSTANTS
 
 UNIT_TYPES = Constants.UNIT_TYPES
-BUILD_NIGHT_BUFFER = 3 # 1
+BUILD_NIGHT_BUFFER = 3  # 1
 
 
 class Player:
@@ -243,7 +243,7 @@ class Unit:
 
         action, target_pos = self.current_task
         if action == ValidActions.MOVE:
-            if (self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night) and (self.num_resources <GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
+            if (self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
                 if closest_resource_pos is not None and closest_resource_pos != target_pos:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
@@ -268,16 +268,30 @@ class Unit:
         if self.current_task is None:
             return
 
+        should_recheck = True
+        while should_recheck:
+            should_recheck = False
+            for ind, (action, target) in enumerate(self.task_q):
+                if action == ValidActions.BUILD and game_map.position_to_cluster(target) is None:
+                    self.task_q = deque(list(self.task_q)[ind+1:])
+                    should_recheck = True
+                    break
+                elif action == ValidActions.COLLECT and game_map.get_cell_by_pos(target).resource is None:
+                    self.task_q = deque(list(self.task_q)[ind+1:])
+                    should_recheck = True
+                    break
+
         action, target = self.current_task
         if action == ValidActions.MOVE and self.pos == target:
             self.current_task = None
         elif action == ValidActions.COLLECT:
             if self.cargo_space_left() <= 0 or game_map.get_cell_by_pos(target).resource is None:
                 self.current_task = None
-        elif action == ValidActions.BUILD and game_map.get_cell_by_pos(target).citytile is not None:
-            self.should_avoid_citytiles = False
-            self.current_task = None
-            self.has_colonized = True
+        elif action == ValidActions.BUILD:
+            if game_map.get_cell_by_pos(target).citytile is not None or game_map.position_to_cluster(target) is None:
+                self.should_avoid_citytiles = False
+                self.current_task = None
+                self.has_colonized = True
         elif action == ValidActions.PILLAGE and game_map.get_cell_by_pos(target).road == 0:
             self.current_task = None
         elif action == ValidActions.TRANSFER and self.did_just_transfer:
