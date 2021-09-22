@@ -445,6 +445,42 @@ class Position:
                 return None
         return self._closest_city_pos
 
+    def _find_closest_resource(self, resources_to_consider, game_map):
+
+        for resource in resources_to_consider:
+            if self._closest_resource_pos[resource] is None or not game_map.get_cell_by_pos(self._closest_resource_pos[resource]).has_resource():
+                closest_dist = math.inf
+                for resource_tile in game_map.resources():
+                    if resource_tile.resource.type != resource:
+                        continue
+                    dist = resource_tile.pos.distance_to(self)
+                    if dist < closest_dist:
+                        closest_dist = dist
+                        self._closest_resource_pos[resource] = resource_tile.pos
+        if resources_to_consider:
+            return min(
+                [self._closest_resource_pos[r] for r in resources_to_consider],
+                key=self.distance_to
+            )
+        else:
+            return None
+
+    def find_closest_wood(self, game_map):
+        """ Find the closest wood to this position.
+
+        Parameters
+        ----------
+        game_map : :GameMap:
+            Map containing position and resources.
+
+        Returns
+        -------
+        Position
+            Position of closest resource.
+
+        """
+        return self._find_closest_resource([WOOD], game_map)
+
     def find_closest_resource(self, player, game_map, prefer_unlocked_resources=False):
         """ Find the closest resource to this position.
 
@@ -458,7 +494,6 @@ class Position:
         prefer_unlocked_resources : bool, optional
             Option to prefer the most fuel-efficient resources,
             if they are unlocked.
-
 
         Returns
         -------
@@ -481,23 +516,7 @@ class Position:
             if player.researched_uranium:
                 resources_to_consider.append(COAL)
 
-        for resource in resources_to_consider:
-            if self._closest_resource_pos[resource] is None or not game_map.get_cell_by_pos(self._closest_resource_pos[resource]).has_resource():
-                closest_dist = math.inf
-                for resource_tile in game_map.resources():
-                    if resource_tile.resource.type != resource:
-                        continue
-                    dist = resource_tile.pos.distance_to(self)
-                    if dist < closest_dist:
-                        closest_dist = dist
-                        self._closest_resource_pos[resource] = resource_tile.pos
-        if resources_to_consider:
-            return min(
-                [self._closest_resource_pos[r] for r in resources_to_consider],
-                key=self.distance_to
-            )
-        else:
-            return None
+        return self._find_closest_resource(resources_to_consider, game_map)
 
     def direction_to(self, target_pos: 'Position', pos_to_check=None, do_shuffle=True) -> DIRECTIONS:
         """ Return closest position to target_pos from this position
