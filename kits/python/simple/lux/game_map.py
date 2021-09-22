@@ -21,7 +21,7 @@ class Resource:
 
 
 class ResourceCluster:
-    def __init__(self, r_type: str):
+    def __init__(self, r_type: str, positions):
         self.type = r_type
         self._resource_positions = dict()
         self.total_amount = -1
@@ -31,12 +31,17 @@ class ResourceCluster:
         self.max_loc = None
         self.center_pos = None
         self.current_score = 0
+        self.n_workers_spawned = 0
+
+        for pos in positions:
+            self._resource_positions[pos] = None
+        self._hash = hash(tuple(self._resource_positions.keys()))
 
     def __eq__(self, other) -> bool:
         return self.resource_positions == other.resource_positions
 
     def __hash__(self):
-        return hash(tuple(self._resource_positions.keys()))
+        return self._hash
 
     def calculate_score(self, player, opponent, scaling_factor=1):
         # From list 'L' of clusters with type (wood, coal, uranium) and number of resources in cluster:
@@ -63,11 +68,6 @@ class ResourceCluster:
             [self.center_pos.distance_to(unit.pos) for unit in opponent.units]
         )
         return self.current_score
-
-    def add_resource_positions(self, *positions):
-        self._resource_positions = dict()
-        for pos in positions:
-            self._resource_positions[pos] = None
 
     def update_state(self, game_map, opponent):
         cells = {
@@ -305,8 +305,7 @@ class GameMap:
             if cell.has_resource() and cell.pos not in resource_pos_found:
                 new_cluster_pos = self._check_for_cluster(cell.pos, {cell.pos}, cell.resource.type)
                 resource_pos_found = resource_pos_found | new_cluster_pos
-                new_cluster = ResourceCluster(cell.resource.type)
-                new_cluster.add_resource_positions(*new_cluster_pos)
+                new_cluster = ResourceCluster(cell.resource.type, new_cluster_pos)
                 resource_clusters.append(new_cluster)
 
         return resource_clusters
