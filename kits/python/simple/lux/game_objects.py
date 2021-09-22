@@ -244,7 +244,7 @@ class Unit:
         if action == ValidActions.MOVE:
             if (self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night) and (self.num_resources <GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map, prefer_unlocked_resources=False)
-                if closest_resource_pos is not None:
+                if closest_resource_pos is not None and closest_resource_pos != target_pos:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
                 else:
                     return None, None
@@ -270,8 +270,9 @@ class Unit:
         action, target = self.current_task
         if action == ValidActions.MOVE and self.pos == target:
             self.current_task = None
-        elif action == ValidActions.COLLECT and self.cargo_space_left() <= 0:
-            self.current_task = None
+        elif action == ValidActions.COLLECT:
+            if self.cargo_space_left() <= 0 or game_map.get_cell_by_pos(target).resource is None:
+                self.current_task = None
         elif action == ValidActions.BUILD and game_map.get_cell_by_pos(target).citytile is not None:
             self.should_avoid_citytiles = False
             self.current_task = None
@@ -284,6 +285,7 @@ class Unit:
 
         if self.current_task is None and self.task_q:
             self.current_task = self.task_q.popleft()
+            self.check_for_task_completion(game_map)
 
     def cargo_space_left(self):
         """
