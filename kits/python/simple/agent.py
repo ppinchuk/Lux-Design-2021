@@ -247,6 +247,13 @@ def agent(observation, configuration):
     for __, city in player.cities.items():
         for tile in city.citytiles:
             blocked_positions.discard(tile.pos)
+
+    # for __, city in player.cities.items():
+    #     for tile in city.citytiles:
+    #         if LogicGlobals.game_state.turns_until_next_night > 3:  TODO: This fails for managing positions
+    #             blocked_positions.discard(tile.pos)
+    #         else:
+    #             blocked_positions.add(tile.pos)
         # print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=sys.stderr)
 
     for unit in player.units:
@@ -255,8 +262,6 @@ def agent(observation, configuration):
 
     for unit in player.units:
         action, target = unit.propose_action(player, LogicGlobals.game_state)
-        if unit.id == 'u_6':
-            print(LogicGlobals.game_state.turn, action, target, file=sys.stderr)
         # print(f"Unit {unit.id} at {unit.pos} proposed action {action} with target {target}", file=sys.stderr)
         if action == ValidActions.MOVE:
             blocked_positions.discard(unit.pos)
@@ -267,8 +272,6 @@ def agent(observation, configuration):
         action, target = unit.propose_action(
             player, LogicGlobals.game_state
         )
-        if unit.id == 'u_6':
-            print(LogicGlobals.game_state.turn, action, target, file=sys.stderr)
         if action is None:
             continue
         elif action == ValidActions.BUILD:
@@ -285,6 +288,8 @@ def agent(observation, configuration):
             for direction in ALL_DIRECTIONS:
                 new_pos = unit.pos.translate(direction, 1)
                 if new_pos in enemy_blocked_positions:
+                    continue
+                if new_pos in player.city_pos and LogicGlobals.game_state.turns_until_next_night < 3:
                     continue
                 if not LogicGlobals.game_state.map.is_within_bounds(new_pos):
                     continue
