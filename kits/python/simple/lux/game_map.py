@@ -185,19 +185,27 @@ class ResourceCluster:
 
             print(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}", file=print_out)
 
-            opponent_x_vals, opponent_y_vals = [], []
-            for unit in opponent.units:
-                opponent_x_vals.append(unit.pos.x)
-                opponent_y_vals.append(unit.pos.y)
-            for p in opponent.city_pos:
-                opponent_x_vals.append(p.x)
-                opponent_y_vals.append(p.y)
-            opponent_med_pos = Position(
-                statistics.median(opponent_x_vals),
-                statistics.median(opponent_y_vals),
+            # opponent_x_vals, opponent_y_vals = [], []
+            # for unit in opponent.units:
+            #     opponent_x_vals.append(unit.pos.x)
+            #     opponent_y_vals.append(unit.pos.y)
+            # for p in opponent.city_pos:
+            #     opponent_x_vals.append(p.x)
+            #     opponent_y_vals.append(p.y)
+            # opponent_med_pos = Position(
+            #     statistics.median(opponent_x_vals),
+            #     statistics.median(opponent_y_vals),
+            # )
+            # self.pos_to_defend = sorted(
+            #     self.pos_to_defend, key=opponent_med_pos.distance_to
+            # )
+
+            closest_opponent_pos = min(
+                opponent.city_pos | opponent.unit_pos,
+                key=self.center_pos.distance_to
             )
             self.pos_to_defend = sorted(
-                self.pos_to_defend, key=opponent_med_pos.distance_to
+                self.pos_to_defend, key=closest_opponent_pos.distance_to
             )
 
         for x in range(self.min_loc[0], self.max_loc[0] + 1):
