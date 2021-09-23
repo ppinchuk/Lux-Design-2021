@@ -420,6 +420,12 @@ class Position:
     def __hash__(self):
         return hash((self.x, self.y))
 
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y})"
+
+    def __repr__(self) -> str:
+        return f"Position({self.x}, {self.y})"
+
     def adjacent_positions(self, include_center=True):
         adjacent_positions = {
             self.translate(DIRECTIONS.NORTH, 1),
@@ -601,6 +607,3 @@ class Position:
 
         dists = {d: target_pos.distance_to(p) for d, p in dir_pos}
         return min(dists, key=dists.get)
-
-    def __repr__(self) -> str:
-        return f"({self.x}, {self.y})"
