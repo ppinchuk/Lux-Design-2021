@@ -53,6 +53,12 @@ class ValidActions:
         return {cls.TRANSFER, cls.COLLECT}
 
 
+UNIT_TYPE_AS_STR = {
+    0: "WORKER",
+    1: "CART"
+}
+
+
 ALL_DIRECTIONS = [
     Constants.DIRECTIONS.NORTH, Constants.DIRECTIONS.EAST,
     Constants.DIRECTIONS.SOUTH, Constants.DIRECTIONS.WEST
