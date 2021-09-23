@@ -212,6 +212,7 @@ class Unit:
             return None, None
 
         action, target = self.current_task
+
         if action == ValidActions.TRANSFER:
             target_id, __, __ = target
             for unit in player.units:
@@ -219,15 +220,14 @@ class Unit:
                     target_pos = unit.pos
                     if not self.pos.is_adjacent(target_pos):
                         self.push_task((ValidActions.MOVE, target_pos))
-                    break
+                        return self.propose_action(player, game_state)
 
-        action, target = self.current_task
-        if action == ValidActions.MANAGE:
+        elif action == ValidActions.MANAGE:
             if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=False) > 0 for p in  player.cities[target].resource_positions):
                 for target_pos in player.cities[target].resource_positions:
                     if game_state.map.num_adjacent_resources(target_pos, do_wood_check=True) > 0:
                         self.push_task((ValidActions.MOVE, target_pos))
-                        break
+                        return self.propose_action(player, game_state)
             else:
                 if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str]:
                     target_pos = self.pos.find_closest_resource(
@@ -235,6 +235,7 @@ class Unit:
                     )
                     if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
                         self.push_task((ValidActions.COLLECT, target_pos))
+                        return self.propose_action(player, game_state)
                     else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
                         return None, None
                 else:
@@ -244,15 +245,15 @@ class Unit:
                     )
                     if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
                         self.push_task((ValidActions.MOVE, target_pos))
+                        return self.propose_action(player, game_state)
                     else:
                         return None, None
 
-        action, target_pos = self.current_task
-        if action == ValidActions.BUILD:
+        elif action == ValidActions.BUILD:
             # if self.num_resources > 0:
             #     self.should_avoid_citytiles = True
             self.should_avoid_citytiles = True
-            closest_resource_pos = self.closest_resource_pos_for_building(target_pos, game_state, player)
+            closest_resource_pos = self.closest_resource_pos_for_building(target, game_state, player)
             if not self.has_enough_resources_to_build:
                 if closest_resource_pos is not None:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
@@ -261,9 +262,10 @@ class Unit:
                     self.load_next_task()
                     self.check_for_task_completion(game_state.map)
                     return self.propose_action(player, game_state)
-            elif self.pos != target_pos:
-                if self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1, tolerance=STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']):
-                    self.push_task((ValidActions.MOVE, target_pos))
+            elif self.pos != target:
+                if self.can_make_it_before_nightfall(target, game_state, mult=1.1, tolerance=STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']):
+                    self.push_task((ValidActions.MOVE, target))
+                    return self.propose_action(player, game_state)
                 else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
                     return None, None
             if game_state.turns_until_next_night < STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']:
@@ -271,33 +273,29 @@ class Unit:
         # else:
         #     self.should_avoid_citytiles = False
 
-        action, target_pos = self.current_task
-        if action == ValidActions.COLLECT:
-            if game_state.map.get_cell_by_pos(target_pos).resource is None:
-                target_pos = target_pos.find_closest_resource(
+        elif action == ValidActions.COLLECT:
+            if game_state.map.get_cell_by_pos(target).resource is None:
+                target_pos = target.find_closest_resource(
                     player, game_state.map
                 )
                 self.current_task = (action, target_pos)
                 if target_pos is not None:
                     self.push_task((ValidActions.MOVE, target_pos))
+                    return self.propose_action(player, game_state)
                 else:
                     print(f"Unit {self.id} wants to collect but cannot find any resources!", file=sys.stderr)
-            elif not self.pos.is_adjacent(target_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
-                self.push_task((ValidActions.MOVE, target_pos))
+            elif not self.pos.is_adjacent(target) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
+                self.push_task((ValidActions.MOVE, target))
+                return self.propose_action(player, game_state)
 
-        action, target_pos = self.current_task
-        if action == ValidActions.MOVE:
-            if not self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
+        elif action == ValidActions.MOVE:
+            if not self.can_make_it_before_nightfall(target, game_state, mult=1.1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
-                if closest_resource_pos is not None and closest_resource_pos != target_pos:
+                if closest_resource_pos is not None and closest_resource_pos != target:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
-                else:
-                    return None, None
-
-        action, target_pos = self.current_task
-        if action == ValidActions.COLLECT:
-            if not self.pos.is_adjacent(target_pos) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
-                self.push_task((ValidActions.MOVE, target_pos))
+                    return self.propose_action(player, game_state)
+                # else:
+                #     return None, None
 
         # if action in ValidActions.can_be_adjacent():
         #     if not self.pos.is_adjacent(target_pos):
