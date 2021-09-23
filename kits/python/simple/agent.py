@@ -52,33 +52,34 @@ def starter_strategy(unit, player):
     #         key=lambda c: c.current_score
     #     )
 
-    if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
-        closest_cluster = LogicGlobals.game_state.map.position_to_cluster(
-            unit.pos.find_closest_city_tile(player, game_map=LogicGlobals.game_state.map)
-        )
-        if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize < closest_cluster.n_workers_spawned / STRATEGY_CONSTANTS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
-            cluster_to_defend = max(
-                LogicGlobals.clusters_to_colonize,
-                key=lambda c: c.current_score
+    if unit.cluster_to_defend is None or unit.cluster_to_defend not in LogicGlobals.game_state.map.resource_clusters:
+        if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
+            closest_cluster = LogicGlobals.game_state.map.position_to_cluster(
+                unit.pos.find_closest_city_tile(player, game_map=LogicGlobals.game_state.map)
             )
-            closest_cluster.n_workers_sent_to_colonize += 1
+            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize < closest_cluster.n_workers_spawned / STRATEGY_CONSTANTS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
+                unit.cluster_to_defend = max(
+                    LogicGlobals.clusters_to_colonize,
+                    key=lambda c: c.current_score
+                )
+                closest_cluster.n_workers_sent_to_colonize += 1
+            else:
+                unit.cluster_to_defend = LogicGlobals.game_state.map.position_to_cluster(
+                    unit.pos.find_closest_resource(
+                        player=player,
+                        game_map=LogicGlobals.game_state.map,
+                    )
+                )
+
         else:
-            cluster_to_defend = LogicGlobals.game_state.map.position_to_cluster(
+            unit.cluster_to_defend = LogicGlobals.game_state.map.position_to_cluster(
                 unit.pos.find_closest_resource(
                     player=player,
                     game_map=LogicGlobals.game_state.map,
                 )
             )
 
-    else:
-        cluster_to_defend = LogicGlobals.game_state.map.position_to_cluster(
-            unit.pos.find_closest_resource(
-                player=player,
-                game_map=LogicGlobals.game_state.map,
-            )
-        )
-
-    new_city_pos = city_tile_to_build(cluster_to_defend)
+    new_city_pos = city_tile_to_build(unit.cluster_to_defend)
     if new_city_pos is not None:
         unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
         LogicGlobals.pos_being_built.add(new_city_pos)

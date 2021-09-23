@@ -124,6 +124,7 @@ class Unit:
                 'should_avoid_citytiles': False,
                 'was_avoiding_citytiles': False,
                 'has_colonized': False,
+                'cluster_to_defend': None,
             })
         )
 
@@ -138,6 +139,7 @@ class Unit:
                 'should_avoid_citytiles',
                 'was_avoiding_citytiles',
                 'has_colonized',
+                'cluster_to_defend',
             ]
         }
 
