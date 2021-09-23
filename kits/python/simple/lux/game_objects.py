@@ -188,11 +188,6 @@ class Unit:
             print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
         print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=print_out)
 
-    def push_task(self, task):
-        if self.current_task is not None:
-            self.task_q.appendleft(self.current_task)
-        self.current_task = task
-
     def propose_action(self, player, game_state):
 
         # This does not currently work
@@ -238,7 +233,7 @@ class Unit:
                     target_pos = self.pos.find_closest_resource(
                         player, game_state.map
                     )
-                    if self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1) and target_pos != self.pos:
+                    if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
                         self.push_task((ValidActions.COLLECT, target_pos))
                     else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
                         return None, None
@@ -247,7 +242,7 @@ class Unit:
                         [cell.pos for cell in player.cities[target].citytiles],
                         key=self.pos.distance_to
                     )
-                    if self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1) and target_pos != self.pos:
+                    if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
                         self.push_task((ValidActions.MOVE, target_pos))
                     else:
                         return None, None
@@ -257,17 +252,20 @@ class Unit:
             # if self.num_resources > 0:
             #     self.should_avoid_citytiles = True
             self.should_avoid_citytiles = True
+            closest_resource_pos = self.closest_resource_pos_for_building(target_pos, game_state, player)
             if not self.has_enough_resources_to_build:
-                if self.num_resources >= 0.75 * GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
-                    closest_resource_pos = target_pos.find_closest_resource(player, game_state.map)
-                else:
-                    closest_resource_pos = target_pos.find_closest_wood(game_state.map)
                 if closest_resource_pos is not None:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
+                    return self.propose_action(player, game_state)
                 else:
-                    return None, None
+                    self.load_next_task()
+                    self.check_for_task_completion(game_state.map)
+                    return self.propose_action(player, game_state)
             elif self.pos != target_pos:
-                self.push_task((ValidActions.MOVE, target_pos))
+                if self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1, tolerance=STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']):
+                    self.push_task((ValidActions.MOVE, target_pos))
+                else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
+                    return None, None
             if game_state.turns_until_next_night < STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']:
                 return None, None
         # else:
@@ -351,6 +349,17 @@ class Unit:
             self.current_task = self.task_q.popleft()
             self.check_for_task_completion(game_map)
 
+    def push_task(self, task):
+        if self.current_task is not None:
+            self.task_q.appendleft(self.current_task)
+        self.current_task = task
+
+    def load_next_task(self):
+        if self.task_q:
+            self.current_task = self.task_q.popleft()
+        else:
+            self.current_task = None
+
     def cargo_space_left(self):
         """
         get cargo space left in this unit
@@ -364,6 +373,13 @@ class Unit:
     @property
     def has_enough_resources_to_build(self) -> bool:
         return self.num_resources >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
+
+    def closest_resource_pos_for_building(self, build_pos, game_state, player):
+        if self.num_resources >= 0.75 * GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
+            closest_resource_pos = build_pos.find_closest_resource(player, game_state.map)
+        else:
+            closest_resource_pos = build_pos.find_closest_wood(game_state.map)
+        return closest_resource_pos
 
     def can_build(self, game_map) -> bool:
         """
@@ -382,9 +398,9 @@ class Unit:
         """
         return self.cooldown < 1
 
-    def can_make_it_before_nightfall(self, target_pos, game_state, mult=1.0):
+    def can_make_it_before_nightfall(self, target_pos, game_state, mult=1.0, tolerance=0):
         distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
-        return distance_to_target * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"][self.type_str] * mult < game_state.turns_until_next_night
+        return distance_to_target * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"][self.type_str] * mult + tolerance < game_state.turns_until_next_night
 
     def move(self, dir, logs=None) -> str:
         """
