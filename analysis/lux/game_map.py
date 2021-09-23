@@ -81,6 +81,8 @@ class Position:
             return Position(self.x - units, self.y)
         elif direction == DIRECTIONS.CENTER:
             return Position(self.x, self.y)
+        else:
+            raise ValueError(f"Invalid translation directions: {direction}")
 
     def direction_to(self, target_pos: 'Position') -> DIRECTIONS:
         """
