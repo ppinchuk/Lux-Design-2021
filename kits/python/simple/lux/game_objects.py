@@ -143,6 +143,16 @@ class Unit:
             ]
         }
 
+    def reset(self):
+        self.current_task = None
+        self.task_q = deque()
+        self.did_just_transfer = False
+        self.turns_spent_waiting_to_move = 0
+        self.should_avoid_citytiles = False
+        self.was_avoiding_citytiles = False
+        # self.has_colonized = False
+        self.cluster_to_defend = None
+
     def is_worker(self) -> bool:
         return self.type == UNIT_TYPES.WORKER
 
@@ -311,6 +321,9 @@ class Unit:
                     break
 
         action, target = self.current_task
+        # if action == ValidActions.MOVE:
+        #     if (self.task_q and (self.task_q[0][0] in ValidActions.can_be_adjacent()) and self.pos.is_adjacent(target)) or self.pos == target:
+        #         self.current_task = None
         if action == ValidActions.MOVE and self.pos == target:
             self.current_task = None
         elif action == ValidActions.COLLECT:
