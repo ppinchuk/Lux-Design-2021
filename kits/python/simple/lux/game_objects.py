@@ -17,6 +17,7 @@ class Player:
         self.cities: Dict[str, City] = {}
         self.city_tile_count = 0
         self.city_pos = set()
+        self.unit_pos = set()
 
     def researched_coal(self) -> bool:
         return self.research_points >= GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]
