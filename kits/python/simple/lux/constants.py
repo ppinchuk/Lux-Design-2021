@@ -3,6 +3,11 @@ import sys
 import getpass
 
 
+class StrategyTypes:
+    STARTER = 'Starter'
+    TIME_BASED = 'Time-Based'
+
+
 class Constants:
 
     class INPUT_CONSTANTS:
