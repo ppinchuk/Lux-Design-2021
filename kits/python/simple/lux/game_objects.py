@@ -2,7 +2,7 @@ from typing import Dict
 import sys
 from collections import deque
 
-from .constants import Constants, ValidActions, print_out
+from .constants import Constants, ValidActions, print_out, UNIT_TYPE_AS_STR
 from .game_map import Position
 from .game_constants import GAME_CONSTANTS, STRATEGY_CONSTANTS
 
@@ -114,6 +114,7 @@ class Unit:
         self.team = teamid
         self.id = unitid
         self.type = u_type
+        self.type_str = UNIT_TYPE_AS_STR[u_type]
         self.cooldown = cooldown
         self.cargo = Cargo(wood, coal, uranium)
         self.__dict__.update(
@@ -230,21 +231,26 @@ class Unit:
             if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=False) > 0 for p in  player.cities[target].resource_positions):
                 for target_pos in player.cities[target].resource_positions:
                     if game_state.map.num_adjacent_resources(target_pos, do_wood_check=True) > 0:
+                        self.push_task((ValidActions.MOVE, target_pos))
                         break
             else:
-                if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"]:
+                if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str]:
                     target_pos = self.pos.find_closest_resource(
                         player, game_state.map
                     )
-                    if target_pos != self.pos:
+                    if self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1) and target_pos != self.pos:
                         self.push_task((ValidActions.COLLECT, target_pos))
+                    else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
+                        return None, None
                 else:
                     target_pos = min(
                         [cell.pos for cell in player.cities[target].citytiles],
                         key=self.pos.distance_to
                     )
-                    if target_pos != self.pos:
+                    if self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1) and target_pos != self.pos:
                         self.push_task((ValidActions.MOVE, target_pos))
+                    else:
+                        return None, None
 
         action, target_pos = self.current_task
         if action == ValidActions.BUILD:
@@ -283,7 +289,7 @@ class Unit:
 
         action, target_pos = self.current_task
         if action == ValidActions.MOVE:
-            if (self.pos.distance_to(target_pos) * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"]["WORKER"] * 1.1 > game_state.turns_until_next_night) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"]["WORKER"] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
+            if not self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
                 if closest_resource_pos is not None and closest_resource_pos != target_pos:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
@@ -349,10 +355,7 @@ class Unit:
         """
         get cargo space left in this unit
         """
-        if self.type == UNIT_TYPES.WORKER:
-            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["WORKER"] - self.num_resources
-        else:
-            return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"]["CART"] - self.num_resources
+        return GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str] - self.num_resources
 
     @property
     def num_resources(self) -> int:
@@ -378,6 +381,10 @@ class Unit:
         whether or not the unit can move or not. This does not check for potential collisions into other units or enemy cities
         """
         return self.cooldown < 1
+
+    def can_make_it_before_nightfall(self, target_pos, game_state, mult=1.0):
+        distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
+        return distance_to_target * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"][self.type_str] * mult < game_state.turns_until_next_night
 
     def move(self, dir, logs=None) -> str:
         """
