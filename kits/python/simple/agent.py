@@ -1,6 +1,6 @@
 from lux.game import Game
 from lux.game_map import Cell, DIRECTIONS, Position
-from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions
+from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions, print_out
 from collections import Counter, UserDict
 from itertools import chain
 import sys
@@ -230,8 +230,8 @@ def gather_turn_information(player, opponent):
     for c in LogicGlobals.clusters_to_colonize:
         c.calculate_score(player, opponent, scaling_factor=LogicGlobals.max_resource_cluster_amount)
 
-    # for city_id, city in LogicGlobals.player.cities.items():
-    #     print(f"Turn {LogicGlobals.game_state.turn} city {city_id} managers: {city.managers}", file=sys.stderr)
+    for city_id, city in LogicGlobals.player.cities.items():
+        print(f"Turn {LogicGlobals.game_state.turn} city {city_id} managers: {city.managers}", file=print_out)
 
     for __, city in player.cities.items():
         for tile in city.citytiles:
@@ -243,7 +243,7 @@ def gather_turn_information(player, opponent):
     #             blocked_positions.discard(tile.pos)
     #         else:
     #             blocked_positions.add(tile.pos)
-    # print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=sys.stderr)
+    # print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=print_out)
 
     return blocked_positions, enemy_blocked_positions
 
@@ -273,7 +273,7 @@ def agent(observation, configuration):
 
     for unit in player.units:
         action, target = unit.propose_action(player, LogicGlobals.game_state)
-        # print(f"Unit {unit.id} at {unit.pos} proposed action {action} with target {target}", file=sys.stderr)
+        print(f"Unit {unit.id} at {unit.pos} proposed action {action} with target {target}", file=print_out)
         if action == ValidActions.MOVE:
             blocked_positions.discard(unit.pos)
 
@@ -322,7 +322,7 @@ def agent(observation, configuration):
                 continue
             proposed_positions.setdefault(new_pos, []).append((unit, dir_to_move))
 
-    # print(f"{proposed_positions}", file=sys.stderr)
+    # print(f"{proposed_positions}", file=print_out)
     for pos, units in proposed_positions.items():
         unit, direction = max(units, key=lambda pair: pair[0].turns_spent_waiting_to_move)
         actions.append(unit.move(direction, logs=debug_info))

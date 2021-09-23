@@ -4,7 +4,7 @@ import sys
 import statistics
 from random import shuffle
 
-from .constants import Constants, ALL_DIRECTIONS
+from .constants import Constants, ALL_DIRECTIONS, print_out
 from .game_constants import STRATEGY_CONSTANTS
 
 DIRECTIONS = Constants.DIRECTIONS
@@ -183,7 +183,7 @@ class ResourceCluster:
                     if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
                 }
 
-            print(f"Num to block: {self.n_to_block}", file=sys.stderr)
+            print(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}", file=print_out)
 
             opponent_x_vals, opponent_y_vals = [], []
             for unit in opponent.units:

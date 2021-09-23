@@ -2,7 +2,7 @@ from typing import Dict
 import sys
 from collections import deque
 
-from .constants import Constants, ValidActions
+from .constants import Constants, ValidActions, print_out
 from .game_map import Position
 from .game_constants import GAME_CONSTANTS, STRATEGY_CONSTANTS
 
@@ -171,7 +171,7 @@ class Unit:
         self.current_task = (action, target)
         if action == ValidActions.MANAGE:
             print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
-        # print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
+        print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=print_out)
 
     def push_task(self, task):
         if self.current_task is not None:

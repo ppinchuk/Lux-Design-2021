@@ -1,3 +1,8 @@
+import io
+import sys
+import getpass
+
+
 class Constants:
 
     class INPUT_CONSTANTS:
@@ -58,3 +63,9 @@ ALL_DIRECTIONS_AND_CENTER = [
     Constants.DIRECTIONS.SOUTH, Constants.DIRECTIONS.WEST,
     Constants.DIRECTIONS.CENTER
 ]
+
+if getpass.getuser() == 'Paul':
+    print_out = io.StringIO()
+else:
+    print_out = sys.stderr
+
