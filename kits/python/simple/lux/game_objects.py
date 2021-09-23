@@ -235,6 +235,8 @@ class Unit:
 
         action, target_pos = self.current_task
         if action == ValidActions.BUILD:
+            # if self.num_resources > 0:
+            #     self.should_avoid_citytiles = True
             self.should_avoid_citytiles = True
             if not self.has_enough_resources_to_build:
                 if self.num_resources >= 0.75 * GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:

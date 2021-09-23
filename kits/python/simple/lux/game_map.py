@@ -380,6 +380,31 @@ class Position:
     def __sub__(self, pos) -> int:
         return abs(pos.x - self.x) + abs(pos.y - self.y)
 
+    def pathing_distance_to(self, pos, game_map):
+        if pos == self:
+            return 0
+        elif self - pos > 10:
+            return self - pos
+        else:
+            i = 0
+            step = 0
+            main_list = [(pos, step)]
+            while self not in set(x[0] for x in main_list):
+                try:
+                    next_pos, step = main_list[i]
+                except IndexError:
+                    return 100000
+                if step >= 10:
+                    break
+                for p in next_pos.adjacent_positions(include_center=False):
+                    if game_map.is_within_bounds(p) and game_map.get_cell_by_pos(p).citytile is None and p not in set(x[0] for x in main_list):
+                        main_list.append((p, step + 1))
+                i += 1
+            for x in main_list:
+                if x[0] == self:
+                    return x[1] + 1
+            return step
+
     def distance_to(self, pos):
         """
         Returns Manhattan (L1/grid) distance to pos
@@ -520,6 +545,25 @@ class Position:
                 resources_to_consider.append(URANIUM)
 
         return self._find_closest_resource(resources_to_consider, game_map)
+
+    def sort_directions_by_pathing_distance(self, target_pos, game_map, pos_to_check=None, tolerance=None):
+
+        if self.distance_to(target_pos) == 0:
+            return DIRECTIONS.CENTER
+
+        if pos_to_check is None:
+            pos_to_check = {
+                direction: self.translate(direction, 1)
+                for direction in ALL_DIRECTIONS
+            }
+
+        dir_pos = list(pos_to_check.items())
+        dists = {d: target_pos.pathing_distance_to(p, game_map=game_map) for d, p in dir_pos}
+
+        if tolerance is not None:
+            dists = {k: v for k, v in dists.items() if v < tolerance + min(dists.values())}
+
+        return sorted(dists, key=dists.get)
 
     def direction_to(self, target_pos: 'Position', pos_to_check=None, do_shuffle=True) -> DIRECTIONS:
         """ Return closest position to target_pos from this position

@@ -1,7 +1,7 @@
 from lux.game import Game
 from lux.game_map import Cell, DIRECTIONS, Position
 from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions, print_out
-from collections import Counter, UserDict
+from collections import deque, Counter, UserDict
 from itertools import chain
 import sys
 from lux.game_constants import STRATEGY_CONSTANTS
@@ -63,7 +63,6 @@ def starter_strategy(unit, player):
             )
             closest_cluster.n_workers_sent_to_colonize += 1
         else:
-            # cluster_to_defend = POSITION_TO_CLUSTER[
             cluster_to_defend = LogicGlobals.game_state.map.position_to_cluster(
                 unit.pos.find_closest_resource(
                     player=player,
@@ -196,9 +195,9 @@ def gather_turn_information(player, opponent):
     #             blocked_positions = blocked_positions | cell.pos.adjacent_positions()
 
     for unit in opponent.units:
-        # TODO: This may cause issues in the endgame
-        if LogicGlobals.game_state.turn < 200:
-            blocked_positions = blocked_positions | unit.pos.adjacent_positions()
+        # TODO: This may cause issues in the endgame. This may have to depend on map size
+        # if LogicGlobals.game_state.turn < 200:
+        #     blocked_positions = blocked_positions | unit.pos.adjacent_positions()
         enemy_blocked_positions = enemy_blocked_positions | unit.pos.adjacent_positions()
 
     for __, city in opponent.cities.items():
@@ -239,7 +238,7 @@ def gather_turn_information(player, opponent):
 
     # for __, city in player.cities.items():
     #     for tile in city.citytiles:
-    #         if LogicGlobals.game_state.turns_until_next_night > 3:  TODO: This fails for managing positions
+    #         if LogicGlobals.game_state.turns_until_next_night > 3:  TODO: This fails for managing positions. his may have to depend on cluster resource amount
     #             blocked_positions.discard(tile.pos)
     #         else:
     #             blocked_positions.add(tile.pos)
@@ -248,21 +247,7 @@ def gather_turn_information(player, opponent):
     return blocked_positions, enemy_blocked_positions
 
 
-def agent(observation, configuration):
-
-    ### Do not edit ###
-    if observation["step"] == 0:
-        LogicGlobals.game_state._initialize(observation["updates"])
-        LogicGlobals.game_state._update(observation["updates"][2:], observation)
-        LogicGlobals.game_state.id = observation.player
-    else:
-        LogicGlobals.game_state._update(observation["updates"], observation)
-
-    ### AI Code goes down here! ###
-    player = LogicGlobals.player = LogicGlobals.game_state.players[observation.player]
-    opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
-    width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
-    update_logic_globals(player)
+def old_unit_action_resolution(player, opponent):
 
     actions = []
     blocked_positions, enemy_blocked_positions = gather_turn_information(player, opponent)
@@ -293,6 +278,8 @@ def agent(observation, configuration):
         elif action == ValidActions.PILLAGE:
             actions.append(unit.pillage(logs=debug_info))
         elif action == ValidActions.MOVE:
+            if target == unit.pos:
+                continue
             blocked_positions.discard(unit.pos)
 
             pos_to_check = {}
@@ -305,7 +292,8 @@ def agent(observation, configuration):
                 if not LogicGlobals.game_state.map.is_within_bounds(new_pos):
                     continue
                 pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
-                if not LogicGlobals.game_state.map.is_within_bounds(new_pos) or (pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5):
+                if not LogicGlobals.game_state.map.is_within_bounds(new_pos) or (
+                        pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5):
                     continue
                 pos_to_check[direction] = new_pos
             if not pos_to_check:
@@ -330,6 +318,119 @@ def agent(observation, configuration):
         for other_unit in units:
             if other_unit[0].id != unit.id:
                 other_unit[0].turns_spent_waiting_to_move += 1
+
+    return actions, debug_info
+
+
+def unit_action_resolution(player, opponent):
+    actions = []
+    blocked_positions, enemy_blocked_positions = gather_turn_information(player, opponent)
+
+    for unit in player.units:
+        if unit.current_task is None:
+            set_unit_task(unit, player)
+
+    for unit in player.units:
+        action, target = unit.propose_action(player, LogicGlobals.game_state)
+        print(f"Unit {unit.id} at {unit.pos} proposed action {action} with target {target}", file=print_out)
+        if action == ValidActions.MOVE:
+            blocked_positions.discard(unit.pos)
+
+    debug_info = []
+    proposed_positions = {}
+    units_wanting_to_move = set()
+    for unit in player.units:
+        action, target = unit.propose_action(
+            player, LogicGlobals.game_state
+        )
+        if action is None:
+            continue
+        elif action == ValidActions.BUILD:
+            actions.append(unit.build_city(logs=debug_info))
+        elif action == ValidActions.TRANSFER:
+            actions.append(unit.transfer(*target, logs=debug_info))
+            unit.did_just_transfer = True
+        elif action == ValidActions.PILLAGE:
+            actions.append(unit.pillage(logs=debug_info))
+        elif action == ValidActions.MOVE:
+            if target == unit.pos:
+                continue
+            blocked_positions.discard(unit.pos)
+
+            pos_to_check = {}
+            for direction in ALL_DIRECTIONS:
+                new_pos = unit.pos.translate(direction, 1)
+                # if new_pos in enemy_blocked_positions:
+                #     continue
+                if new_pos in player.city_pos and LogicGlobals.game_state.turns_until_next_night < 3:
+                    continue
+                if not LogicGlobals.game_state.map.is_within_bounds(new_pos):
+                    continue
+                pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
+                if not LogicGlobals.game_state.map.is_within_bounds(new_pos) or (
+                        pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5):
+                    continue
+                pos_to_check[direction] = new_pos
+            if not pos_to_check:
+                unit.turns_spent_waiting_to_move += 1
+                blocked_positions.add(unit.pos)
+                continue
+            unit.dirs_to_move = unit.pos.sort_directions_by_pathing_distance(
+                target, LogicGlobals.game_state.map,
+                pos_to_check=pos_to_check, tolerance=3
+            )
+            unit.dirs_to_move = deque((d, pos_to_check[d]) for d in unit.dirs_to_move)
+            if not unit.dirs_to_move:
+                unit.turns_spent_waiting_to_move += 1
+                blocked_positions.add(unit.pos)
+                continue
+            units_wanting_to_move.add(unit)
+
+    while any(unit.dirs_to_move for unit in units_wanting_to_move):
+        proposed_positions = dict()
+        units_that_cant_move = set()
+        for unit in units_wanting_to_move:
+            if not unit.dirs_to_move:
+                units_that_cant_move.add(unit)
+                unit.turns_spent_waiting_to_move += 1
+                blocked_positions.add(unit.pos)
+                continue
+            dir_to_move, new_pos = unit.dirs_to_move.popleft()
+            proposed_positions.setdefault(new_pos, []).append((unit, dir_to_move))
+
+        # print(f"{proposed_positions}", file=print_out)
+        for pos, units in proposed_positions.items():
+            if pos in blocked_positions:
+                continue
+            unit, direction = max(units, key=lambda pair: pair[0].turns_spent_waiting_to_move)
+            unit.turns_spent_waiting_to_move = 0
+            actions.append(unit.move(direction, logs=debug_info))
+            units_that_cant_move.add(unit)
+            blocked_positions.add(pos)
+
+        units_wanting_to_move = units_wanting_to_move - units_that_cant_move
+
+    return actions, debug_info
+
+
+def agent(observation, configuration):
+
+    ### Do not edit ###
+    if observation["step"] == 0:
+        LogicGlobals.game_state._initialize(observation["updates"])
+        LogicGlobals.game_state._update(observation["updates"][2:], observation)
+        LogicGlobals.game_state.id = observation.player
+    else:
+        LogicGlobals.game_state._update(observation["updates"], observation)
+
+    ### AI Code goes down here! ###
+    player = LogicGlobals.player = LogicGlobals.game_state.players[observation.player]
+    opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
+    width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
+    update_logic_globals(player)
+
+    # actions, debug_info = old_unit_action_resolution(player, opponent)
+    actions, debug_info = unit_action_resolution(player, opponent)
 
     for _, city in player.cities.items():
         for city_tile in city.citytiles:
