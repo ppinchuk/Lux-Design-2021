@@ -67,5 +67,5 @@ ALL_DIRECTIONS_AND_CENTER = [
 if getpass.getuser() == 'Paul':
     print_out = io.StringIO()
 else:
-    print_out = sys.stderr
+    print_out = sys.__stderr__
 
