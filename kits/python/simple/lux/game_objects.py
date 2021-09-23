@@ -2,7 +2,7 @@ from typing import Dict
 import sys
 from collections import deque
 
-from .constants import Constants, ValidActions, print_out, UNIT_TYPE_AS_STR
+from .constants import Constants, ValidActions, print_out, UNIT_TYPE_AS_STR, StrategyTypes
 from .game_map import Position
 from .game_constants import GAME_CONSTANTS, STRATEGY_CONSTANTS
 
@@ -19,6 +19,7 @@ class Player:
         self.city_pos = set()
         self.unit_pos = set()
         self.unit_ids = set()
+        self.current_strategy = None
 
     def researched_coal(self) -> bool:
         return self.research_points >= GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]
@@ -260,7 +261,7 @@ class Unit:
                     return self.propose_action(player, game_state)
                 else:
                     self.load_next_task()
-                    self.check_for_task_completion(game_state.map)
+                    self.check_for_task_completion(game_state.map, player)
                     return self.propose_action(player, game_state)
             elif self.pos != target:
                 if self.can_make_it_before_nightfall(target, game_state, mult=1.1, tolerance=STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']):
@@ -306,7 +307,7 @@ class Unit:
 
         return self.current_task
 
-    def check_for_task_completion(self, game_map):
+    def check_for_task_completion(self, game_map, player):
         if self.current_task is None:
             return
 
@@ -314,12 +315,18 @@ class Unit:
         while should_recheck:
             should_recheck = False
             for ind, (action, target) in enumerate(self.task_q):
-                if action == ValidActions.BUILD and game_map.position_to_cluster(target) is None:
-                    self.task_q = deque(list(self.task_q)[ind+1:])
+                if action == ValidActions.BUILD and game_map.position_to_cluster(target) is None and player.current_strategy == StrategyTypes.STARTER:
+                    if ind >= len(self.task_q) - 1:
+                        self.task_q = deque()
+                    else:
+                        self.task_q = deque(list(self.task_q)[ind + 1:])
                     should_recheck = True
                     break
                 elif action == ValidActions.COLLECT and game_map.get_cell_by_pos(target).resource is None:
-                    self.task_q = deque(list(self.task_q)[ind+1:])
+                    if ind >= len(self.task_q) - 1:
+                        self.task_q = deque()
+                    else:
+                        self.task_q = deque(list(self.task_q)[ind+1:])
                     should_recheck = True
                     break
 
@@ -345,7 +352,7 @@ class Unit:
 
         if self.current_task is None and self.task_q:
             self.current_task = self.task_q.popleft()
-            self.check_for_task_completion(game_map)
+            self.check_for_task_completion(game_map, player)
 
     def push_task(self, task):
         if self.current_task is not None:

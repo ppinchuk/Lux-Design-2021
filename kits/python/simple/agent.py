@@ -1,31 +1,29 @@
 from lux.game import Game
-from lux.game_map import Cell, DIRECTIONS, Position
-from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions, print_out
+# from lux.game_map import MAP_CACHE
+from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions, print_out, StrategyTypes
+from lux.strategy_utils import *
 from collections import deque, Counter, UserDict
 from itertools import chain
-import sys
 from lux.game_constants import STRATEGY_CONSTANTS
 from lux import annotate
 import math
+import sys
+import lux.game_objects as go
 
 ### Define helper functions
 
-
-def city_tile_to_build(cluster):
-    if cluster is None:
-        return None
-    for pos in cluster.pos_to_defend:
-        cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
-        if cell.is_empty() and pos not in LogicGlobals.pos_being_built:
-            return cell.pos
-    return None
-
+DIRECTIONS = Constants.DIRECTIONS
 
 # if our cluster is separate from other base, build around them.
 # Prefer 2x2 clusters
 
+
 def starter_strategy(unit, player):
-    LogicGlobals.current_strategy = 'Starter'
+    if player.current_strategy != StrategyTypes.STARTER:
+        player.current_strategy = StrategyTypes.STARTER
+        reset_unit_tasks(player)
+        LogicGlobals.pos_being_built = set()
+
     if not unit.can_act():
         return
 
@@ -79,7 +77,12 @@ def starter_strategy(unit, player):
                 )
             )
 
-    new_city_pos = city_tile_to_build(unit.cluster_to_defend)
+    # TODO: WHAT IF THERE IS NO MORE WOOD??
+    new_city_pos = city_tile_to_build(
+        unit.cluster_to_defend,
+        LogicGlobals.game_state.map,
+        LogicGlobals.pos_being_built
+    )
     if new_city_pos is not None:
         unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
         LogicGlobals.pos_being_built.add(new_city_pos)
@@ -125,12 +128,29 @@ def time_based_strategy(unit, player):
 
 
     """
-    LogicGlobals.current_strategy = 'Time-Based'
+    if player.current_strategy != StrategyTypes.TIME_BASED:
+        player.current_strategy = StrategyTypes.TIME_BASED
+        reset_unit_tasks(player)
+        LogicGlobals.pos_being_built = set()
+
+    if LogicGlobals.TBS_COM is None:
+        LogicGlobals.TBS_COM = compute_tbs_com(LogicGlobals.game_state.map)
+        print(f"New TBS COM is: {LogicGlobals.TBS_COM}", file=sys.stderr)
+
+    # TODO: WHAT IF THERE IS NO MORE WOOD??
+    new_city_pos = city_tile_to_build_tbs(
+        LogicGlobals.TBS_COM,
+        LogicGlobals.game_state.map,
+        LogicGlobals.pos_being_built
+    )
+    if new_city_pos is not None:
+        unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
+        LogicGlobals.pos_being_built.add(new_city_pos)
 
 
 def set_unit_task(unit, player):
     starter_strategy(unit, player)
-
+    # time_based_strategy(unit, player)
 
 class LogicGlobals:
     game_state = Game()
@@ -143,7 +163,8 @@ class LogicGlobals:
     resource_cluster_to_defend = None
     clusters_to_colonize = set()
     max_resource_cluster_amount = 0
-    current_strategy = None
+    TBS_COM = None
+    TBS_citytiles = set()
 
 
 def update_logic_globals(player):
@@ -184,6 +205,10 @@ def update_logic_globals(player):
             LogicGlobals.resource_cluster_to_defend.pos_to_defend) or LogicGlobals.resource_cluster_to_defend.total_amount <= 0):
         LogicGlobals.resource_cluster_to_defend = None
 
+    units_lost = set(go.UNIT_CACHE) - player.unit_ids
+    for id_ in units_lost:
+        go.UNIT_CACHE.pop(id_)
+
 
 def gather_turn_information(player, opponent):
     blocked_positions = set()
@@ -207,7 +232,7 @@ def gather_turn_information(player, opponent):
 
     LogicGlobals.pos_being_built = set()
     for unit in player.units:
-        unit.check_for_task_completion(game_map=LogicGlobals.game_state.map)
+        unit.check_for_task_completion(game_map=LogicGlobals.game_state.map, player=player)
         blocked_positions.add(unit.pos)
         for task, target in chain([unit.current_task if unit.current_task is not None else (None, None)], unit.task_q):
             if task == ValidActions.BUILD:
@@ -331,11 +356,11 @@ def unit_action_resolution(player, opponent):
         if unit.current_task is None:
             set_unit_task(unit, player)
 
-    for unit in player.units:
-        action, target = unit.propose_action(player, LogicGlobals.game_state)
-        print(f"Unit {unit.id} at {unit.pos} proposed action {action} with target {target}", file=print_out)
-        if action == ValidActions.MOVE:
-            blocked_positions.discard(unit.pos)
+    # for unit in player.units:
+    #     action, target = unit.propose_action(player, LogicGlobals.game_state)
+    #     print(f"Turn {LogicGlobals.game_state.turn}: Unit {unit.id} at {unit.pos} proposed action {action} with target {target}", file=print_out)
+    #     if action == ValidActions.MOVE:
+    #         blocked_positions.discard(unit.pos)
 
     debug_info = []
     proposed_positions = {}
@@ -344,6 +369,9 @@ def unit_action_resolution(player, opponent):
         action, target = unit.propose_action(
             player, LogicGlobals.game_state
         )
+        print(
+            f"Turn {LogicGlobals.game_state.turn}: Unit {unit.id} at {unit.pos} proposed action {action} with target {target}",
+            file=print_out)
         if action is None:
             continue
         elif action == ValidActions.BUILD:
@@ -442,7 +470,7 @@ def agent(observation, configuration):
                     if cluster is not None:
                         cluster.n_workers_spawned += 1
                 else:
-                    if not player.researched_uranium():
+                    if player.current_strategy == StrategyTypes.STARTER and not player.researched_uranium():
                         actions.append(city_tile.research())
                         player.research_points += 1
 
@@ -450,7 +478,7 @@ def agent(observation, configuration):
 
     actions.append(
         annotate.sidetext(
-            f"Current Strategy: {LogicGlobals.current_strategy}",
+            f"Current Strategy: {player.current_strategy}",
         )
     )
     actions.append(
