@@ -18,6 +18,7 @@ class Player:
         self.city_tile_count = 0
         self.city_pos = set()
         self.unit_pos = set()
+        self.unit_ids = set()
 
     def researched_coal(self) -> bool:
         return self.research_points >= GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]

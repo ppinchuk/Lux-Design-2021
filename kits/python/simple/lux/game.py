@@ -69,6 +69,7 @@ class Game:
                 uranium = int(strs[9])
                 self.players[team].units.append(Unit(team, unittype, unitid, x, y, cooldown, wood, coal, uranium))
                 self.players[team].unit_pos.add(Position(x, y))
+                self.players[team].unit_ids.add(unitid)
             elif input_identifier == INPUT_CONSTANTS.CITY:
                 team = int(strs[1])
                 cityid = strs[2]
