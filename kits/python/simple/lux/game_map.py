@@ -1,17 +1,15 @@
 from typing import List
 import math
 import sys
-import statistics
 from random import shuffle
 
-from .constants import Constants, ALL_DIRECTIONS, print_out
-from .game_constants import STRATEGY_CONSTANTS
+from .constants import Constants, ALL_DIRECTIONS, print_out, STRATEGY_HYPERPARAMETERS
 
 DIRECTIONS = Constants.DIRECTIONS
 WOOD = Constants.RESOURCE_TYPES.WOOD
 COAL = Constants.RESOURCE_TYPES.COAL
 URANIUM = Constants.RESOURCE_TYPES.URANIUM
-MAX_DISTANCE_FROM_EDGE = STRATEGY_CONSTANTS['MAX_DISTANCE_FROM_EDGE']
+MAX_DISTANCE_FROM_EDGE = STRATEGY_HYPERPARAMETERS['MAX_DISTANCE_FROM_EDGE']
 
 
 class Resource:

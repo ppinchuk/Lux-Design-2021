@@ -1,10 +1,8 @@
 from typing import Dict
 import sys
 from collections import deque
-
-from .constants import Constants, ValidActions, print_out, UNIT_TYPE_AS_STR, StrategyTypes
+from .constants import Constants, ValidActions, print_out, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS
 from .game_map import Position
-from .game_constants import GAME_CONSTANTS, STRATEGY_CONSTANTS
 
 UNIT_TYPES = Constants.UNIT_TYPES
 
@@ -264,12 +262,12 @@ class Unit:
                     self.check_for_task_completion(game_state.map, player)
                     return self.propose_action(player, game_state)
             elif self.pos != target:
-                if self.can_make_it_before_nightfall(target, game_state, mult=1.1, tolerance=STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']):
+                if self.can_make_it_before_nightfall(target, game_state, mult=1.1, tolerance=STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER']):
                     self.push_task((ValidActions.MOVE, target))
                     return self.propose_action(player, game_state)
                 else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
                     return None, None
-            if game_state.turns_until_next_night < STRATEGY_CONSTANTS['BUILD_NIGHT_TURN_BUFFER']:
+            if game_state.turns_until_next_night < STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER']:
                 return None, None
         # else:
         #     self.should_avoid_citytiles = False

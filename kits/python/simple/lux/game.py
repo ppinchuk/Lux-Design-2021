@@ -1,7 +1,6 @@
-from .constants import Constants
+from .constants import Constants, GAME_CONSTANTS
 from .game_map import GameMap, Position
 from .game_objects import Player, Unit, City, CityTile
-from .game_constants import GAME_CONSTANTS
 
 INPUT_CONSTANTS = Constants.INPUT_CONSTANTS
 
