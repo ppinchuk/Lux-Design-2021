@@ -1,5 +1,6 @@
+import sys
 from itertools import chain
-from .constants import ALL_DIRECTIONS, ResourceTypes, Directions
+from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print
 from .game_map import Position
 
 
@@ -57,3 +58,44 @@ def city_tile_to_build_tbs(com_pos, game_map, pos_being_built):
             return cell.pos
 
     return None
+
+
+def set_rbs_rtype():
+    if LogicGlobals.player.researched_uranium():
+        LogicGlobals.RBS_rtype = ResourceTypes.URANIUM
+    elif LogicGlobals.player.researched_coal():
+        LogicGlobals.RBS_rtype = ResourceTypes.COAL
+    else:
+        LogicGlobals.RBS_rtype = ResourceTypes.WOOD
+
+
+def find_clusters_to_colonize_rbs():
+    potential_clusters = [
+        c for c in LogicGlobals.game_state.map.resource_clusters
+        if c.type == LogicGlobals.RBS_rtype
+    ]
+    clusters_to_colonize = set()
+    for cluster in potential_clusters:
+        if any(p in LogicGlobals.opponent.city_pos for p in cluster.pos_to_defend):
+            continue
+        clusters_to_colonize.add(cluster)
+
+    max_num_clusters = len(LogicGlobals.player.unit_ids) // STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['WORKERS_INITIAL']
+    print(f"Player has {len(LogicGlobals.player.unit_ids)} units, so num RBS clusters is: {max_num_clusters} (Minimum {STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['WORKERS_INITIAL']} per cluster)")
+    if len(clusters_to_colonize) > max_num_clusters:
+        clusters_to_colonize = sorted(
+            clusters_to_colonize, key=lambda c: c.total_amount
+        )[:-1-max_num_clusters:-1]
+
+    for c in clusters_to_colonize:
+        LogicGlobals.clusters_to_colonize_rbs[c.id] = set()
+
+    if not LogicGlobals.clusters_to_colonize_rbs:
+        cluster_to_defend = sorted(
+            potential_clusters,
+            key=lambda c: sum(
+                p in LogicGlobals.opponent.city_pos
+                for p in c.pos_to_defend
+            )
+        )[0]
+        LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id] = set()

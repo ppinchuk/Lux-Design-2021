@@ -1,9 +1,12 @@
 from typing import List
 import math
 import sys
-from random import shuffle
+import getpass
+from random import shuffle, seed
+if getpass.getuser() == 'Paul':
+    seed(69420)
 
-from .constants import ALL_DIRECTIONS, print_out, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions
+from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes
 
 
 MAX_DISTANCE_FROM_EDGE = STRATEGY_HYPERPARAMETERS['MAX_DISTANCE_FROM_EDGE']
@@ -28,10 +31,14 @@ class ResourceCluster:
         self.current_score = 0
         self.n_workers_spawned = 0
         self.n_workers_sent_to_colonize = 0
+        self.city_ids = set()
 
         for pos in positions:
             self._resource_positions[pos] = None
-        self._hash = hash(tuple(self._resource_positions.keys()))
+        self.id = self._hash = hash(tuple(self._resource_positions.keys()))
+
+    def __repr__(self) -> str:
+        return f"ResourceCluster({self.type}, {self.id})"
 
     def __eq__(self, other) -> bool:
         return self.resource_positions == other.resource_positions
@@ -178,7 +185,7 @@ class ResourceCluster:
                     if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
                 }
 
-            print(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}", file=print_out)
+            log(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}")
 
             # opponent_x_vals, opponent_y_vals = [], []
             # for unit in opponent.units:
@@ -203,10 +210,16 @@ class ResourceCluster:
                 self.pos_to_defend, key=closest_opponent_pos.distance_to
             )
 
-        for x in range(self.min_loc[0], self.max_loc[0] + 1):
-            for y in range(self.min_loc[1], self.max_loc[1] + 1):
-                if game_map.get_cell(x, y).citytile is not None:
-                    self.pos_defended.append(Position(x, y))
+        self.city_ids = set()
+        self.pos_defended = []
+        for x in range(self.min_loc[0]-1, self.max_loc[0] + 2):
+            for y in range(self.min_loc[1]-1, self.max_loc[1] + 2):
+                if game_map.is_loc_within_bounds(x, y):
+                    city_tile = game_map.get_cell(x, y).citytile
+                    if city_tile is not None:
+                        if city_tile.cityid in LogicGlobals.player.city_ids:
+                            self.city_ids.add(city_tile.cityid)
+                        self.pos_defended.append(Position(x, y))
 
     @property
     def n_to_block(self):
@@ -334,13 +347,18 @@ class GameMap:
             cluster.update_state(
                 game_map=self, opponent=opponent
             )
-            if cluster.total_amount <= 0:
+            if cluster.total_amount <= 0 and LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                 clusters_to_discard.add(cluster)
         self.resource_clusters = self.resource_clusters - clusters_to_discard
 
+    def get_cluster_by_id(self, cluster_id):
+        for c in self.resource_clusters:
+            if c.id == cluster_id:
+                return c
+
     def position_to_cluster(self, pos):
         if not self.resource_clusters:
-            print("No clusters found!", file=sys.stderr)
+            print("No clusters found!",)
             return None
         for cluster in self.resource_clusters:
             if (cluster.min_loc[0] - 1 <= pos.x <= cluster.max_loc[0] + 1) and (
@@ -375,7 +393,7 @@ class Position:
     def __sub__(self, pos) -> int:
         return abs(pos.x - self.x) + abs(pos.y - self.y)
 
-    def pathing_distance_to(self, pos, game_map):
+    def pathing_distance_to(self, pos, game_map, debug=False):
         if pos == self:
             return 0
         elif self - pos > 10:
@@ -385,6 +403,8 @@ class Position:
             step = 0
             main_list = [(pos, step)]
             while self not in set(x[0] for x in main_list):
+                # if debug:
+                #     print(main_list)
                 try:
                     next_pos, step = main_list[i]
                 except IndexError:
@@ -392,6 +412,8 @@ class Position:
                 if step >= 10:
                     break
                 for p in next_pos.adjacent_positions(include_center=False):
+                    if p == self:
+                        return step + 1
                     if game_map.is_within_bounds(p) and game_map.get_cell_by_pos(p).citytile is None and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + 1))
                 i += 1
@@ -491,11 +513,9 @@ class Position:
                     if dist < closest_dist:
                         closest_dist = dist
                         self._closest_resource_pos[resource] = resource_tile.pos
-        if resources_to_consider:
-            return min(
-                [self._closest_resource_pos[r] for r in resources_to_consider],
-                key=self.distance_to
-            )
+        positions = list(filter(None, [self._closest_resource_pos[r] for r in resources_to_consider]))
+        if positions:
+            return min(positions, key=self.distance_to)
         else:
             return None
 

@@ -3,6 +3,7 @@ import sys
 import getpass
 import json
 from os import path
+from functools import partial
 dir_path = path.dirname(__file__)
 
 
@@ -24,6 +25,7 @@ GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"] = GAME_CONSTANTS["PARAMETERS"]["DAY
 class StrategyTypes:
     STARTER = 'Starter'
     TIME_BASED = 'Time-Based'
+    RESEARCH_BASED = 'Research-Based'
 
 
 class InputConstants:
@@ -80,16 +82,19 @@ class ValidActions:
 class LogicGlobals:
     game_state = None
     player = None
+    opponent = None
     start_tile = None
     unlocked_coal = False
     unlocked_uranium = False
     cities = None
     pos_being_built = set()
-    resource_cluster_to_defend = None
     clusters_to_colonize = set()
     max_resource_cluster_amount = 0
     TBS_COM = None
     TBS_citytiles = set()
+    RBS_rtype = None
+    clusters_to_colonize_rbs = {}
+    RBS_citytiles = set()
 
 
 UNIT_TYPE_AS_STR = {
@@ -109,8 +114,16 @@ ALL_DIRECTIONS_AND_CENTER = [
     Directions.CENTER
 ]
 
+# def partial_print(*args):
+#     return print(f"Turn {LogicGlobals.game_state.turn}", *args, file=sys.stderr)
+
+
 if getpass.getuser() == 'Paul':
     print_out = io.StringIO()
+    old_print = print
+    log = partial(print, file=print_out)
+    # print = partial(print, f"Turn {LogicGlobals.game_state.turn}", file=sys.stderr)
+    print = lambda *args: old_print(f"Turn {LogicGlobals.game_state.turn}:", *args, file=sys.stderr)
 else:
-    print_out = sys.__stderr__
-
+    log = partial(print, file=sys.__stderr__)
+    print = print

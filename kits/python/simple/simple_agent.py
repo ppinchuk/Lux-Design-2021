@@ -1,6 +1,6 @@
 from lux.game import Game
 from lux.game_map import Cell
-from lux.constants import ResourceTypes
+from lux.constants import ResourceTypes, LogicGlobals
 import math
 
 
@@ -56,21 +56,19 @@ def agent(observation, configuration):
 
     ### Do not edit ###
     if observation["step"] == 0:
-        game_state = Game()
-        game_state._initialize(observation["updates"])
-        game_state._update(observation["updates"][2:], observation)
-        game_state.id = observation.player
+        LogicGlobals.game_state = Game()
+        LogicGlobals.game_state._initialize(observation["updates"])
+        LogicGlobals.game_state._update(observation["updates"][2:], observation)
+        LogicGlobals.game_state.id = observation.player
     else:
-        game_state._update(observation["updates"], observation)
+        LogicGlobals.game_state._update(observation["updates"], observation)
 
     actions = []
 
     ### AI Code goes down here! ###
-    player = game_state.players[observation.player]
-    opponent = game_state.players[(observation.player + 1) % 2]
-    width, height = game_state.map.width, game_state.map.height
+    player = LogicGlobals.game_state.players[observation.player]
 
-    resource_tiles = find_resources(game_state)
+    resource_tiles = find_resources(LogicGlobals.game_state)
 
     for unit in player.units:
         # if the unit is a worker (can mine resources) and can perform an action this turn

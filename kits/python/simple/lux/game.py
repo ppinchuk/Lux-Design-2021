@@ -1,4 +1,4 @@
-from .constants import GAME_CONSTANTS, InputConstants
+from .constants import GAME_CONSTANTS, InputConstants, LogicGlobals
 from .game_map import GameMap, Position
 from .game_objects import Player, Unit, City, CityTile
 
@@ -15,7 +15,6 @@ class Game:
         mapInfo = messages[1].split(" ")
         self.map_width = int(mapInfo[0])
         self.map_height = int(mapInfo[1])
-        self.map = GameMap(self.map_width, self.map_height)
         self.players = [Player(0), Player(1)]
 
     def _end_turn(self):
@@ -33,6 +32,10 @@ class Game:
         """
         update state
         """
+        if LogicGlobals.player is None:
+            LogicGlobals.player = LogicGlobals.game_state.players[observation.player]
+        if LogicGlobals.opponent is None:
+            LogicGlobals.opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
         self.map = GameMap(self.map_width, self.map_height)
         self.turn += 1
         self.turns_until_next_night = max(0,
@@ -73,6 +76,7 @@ class Game:
                 fuel = float(strs[3])
                 lightupkeep = float(strs[4])
                 self.players[team].cities[cityid] = City(team, cityid, fuel, lightupkeep)
+                self.players[team].city_ids.add(cityid)
             elif input_identifier == InputConstants.CITY_TILES:
                 team = int(strs[1])
                 cityid = strs[2]

@@ -1,7 +1,7 @@
 from typing import Dict
 import sys
 from collections import deque
-from .constants import ValidActions, print_out, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS, UnitTypes
+from .constants import ValidActions, print, log, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS, UnitTypes, LogicGlobals
 from .game_map import Position
 
 
@@ -13,6 +13,7 @@ class Player:
         self.cities: Dict[str, City] = {}
         self.city_tile_count = 0
         self.city_pos = set()
+        self.city_ids = set()
         self.unit_pos = set()
         self.unit_ids = set()
         self.current_strategy = None
@@ -34,6 +35,9 @@ class City:
         self.managers = set()
         self.resource_positions = []
         self.neighbor_resource_types = set()
+
+    def __repr__(self) -> str:
+        return f"City({self.cityid})"
 
     def _add_city_tile(self, x, y, cooldown):
         ct = CityTile(self.team, self.cityid, x, y, cooldown)
@@ -124,6 +128,7 @@ class Unit:
                 'was_avoiding_citytiles': False,
                 'has_colonized': False,
                 'cluster_to_defend': None,
+                'cluster_to_defend_id': None,
             })
         )
 
@@ -139,6 +144,7 @@ class Unit:
                 'was_avoiding_citytiles',
                 'has_colonized',
                 'cluster_to_defend',
+                'cluster_to_defend_id'
             ]
         }
 
@@ -151,6 +157,7 @@ class Unit:
         self.was_avoiding_citytiles = False
         # self.has_colonized = False
         self.cluster_to_defend = None
+        self.cluster_to_defend_id = None
 
     def is_worker(self) -> bool:
         return self.type == UnitTypes.WORKER
@@ -168,32 +175,30 @@ class Unit:
             print(
                 f"Set move task for unit {self.id} (type {self.type}), "
                 f"but unit is already at {target}",
-                file=sys.stderr
             )
             return
         if action == ValidActions.COLLECT and self.cargo_space_left() <= 0:
             print(
                 f"Set collect task for unit {self.id} (type {self.type}), "
                 f"but unit is already at max cargo capacity.",
-                file=sys.stderr
             )
             return
         # if action == ValidActions.BUILD:
         #     self.should_avoid_citytiles = True
         self.current_task = (action, target)
         if action == ValidActions.MANAGE:
-            print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=sys.stderr)
-        print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}", file=print_out)
+            print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}")
+        log(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}")
 
     def propose_action(self, player, game_state):
 
         # This does not currently work
         # if game_state.turns_until_next_night == 3:
-        #     print(f"STARTING THE AVOID ON TURN {game_state.turn}", file=sys.stderr)
+        #     print(f"STARTING THE AVOID ON TURN {game_state.turn}")
         #     self.was_avoiding_citytiles = self.should_avoid_citytiles
         #     self.should_avoid_citytiles = True
         # elif game_state.turns_until_next_night == 30:
-        #     print(f"RESETTING THE AVOID ON TURN {game_state.turn}", file=sys.stderr)
+        #     print(f"RESETTING THE AVOID ON TURN {game_state.turn}")
         #     self.should_avoid_citytiles = self.was_avoiding_citytiles
         #     self.was_avoiding_citytiles = False
 
@@ -221,30 +226,35 @@ class Unit:
 
         elif action == ValidActions.MANAGE:
             if target in player.cities and player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=False) > 0 for p in  player.cities[target].resource_positions):
+                print(f"Unit {self.id} can manage at resource positions :", player.cities[target].resource_positions)
                 for target_pos in player.cities[target].resource_positions:
                     if game_state.map.num_adjacent_resources(target_pos, do_wood_check=True) > 0:
                         self.push_task((ValidActions.MOVE, target_pos))
                         return self.propose_action(player, game_state)
+
+            if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str] - GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str]:
+                print(f"Manager {self.id} has to go find resources.")
+                target_pos = self.pos.find_closest_resource(
+                    player, game_state.map
+                )
+                print(f"Found closest resource to Manager {self.id}:", target_pos)
+                if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.0):
+                    self.push_task((ValidActions.COLLECT, target_pos))
+                    return self.propose_action(player, game_state)
+                else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
+                    distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
+                    print(f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
+                    return None, None
             else:
-                if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str]:
-                    target_pos = self.pos.find_closest_resource(
-                        player, game_state.map
-                    )
-                    if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
-                        self.push_task((ValidActions.COLLECT, target_pos))
-                        return self.propose_action(player, game_state)
-                    else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
-                        return None, None
+                target_pos = min(
+                    [cell.pos for cell in player.cities[target].citytiles],
+                    key=self.pos.distance_to
+                )
+                if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
+                    self.push_task((ValidActions.MOVE, target_pos))
+                    return self.propose_action(player, game_state)
                 else:
-                    target_pos = min(
-                        [cell.pos for cell in player.cities[target].citytiles],
-                        key=self.pos.distance_to
-                    )
-                    if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
-                        self.push_task((ValidActions.MOVE, target_pos))
-                        return self.propose_action(player, game_state)
-                    else:
-                        return None, None
+                    return None, None
 
         elif action == ValidActions.BUILD:
             # if self.num_resources > 0:
@@ -280,13 +290,13 @@ class Unit:
                     self.push_task((ValidActions.MOVE, target_pos))
                     return self.propose_action(player, game_state)
                 else:
-                    print(f"Unit {self.id} wants to collect but cannot find any resources!", file=sys.stderr)
+                    print(f"Unit {self.id} wants to collect but cannot find any resources!")
             elif not self.pos.is_adjacent(target) or game_state.map.get_cell_by_pos(self.pos).citytile is not None:
                 self.push_task((ValidActions.MOVE, target))
                 return self.propose_action(player, game_state)
 
         elif action == ValidActions.MOVE:
-            if not self.can_make_it_before_nightfall(target, game_state, mult=1.1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
+            if not self.can_make_it_before_nightfall(target, game_state, mult=1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
                 if closest_resource_pos is not None and closest_resource_pos != target:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
@@ -304,27 +314,60 @@ class Unit:
         return self.current_task
 
     def check_for_task_completion(self, game_map, player):
-        if self.current_task is None:
-            return
+        # if self.current_task is None:
+        #     return
+        #
+        # should_recheck = True
+        # while should_recheck:
+        #     should_recheck = False
+        #     for ind, (action, target) in enumerate(self.task_q):
+        #         if player.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
+        #             self.current_task = None
+        #             if ind >= len(self.task_q) - 1:
+        #                 self.task_q = deque()
+        #             else:
+        #                 self.task_q = deque(list(self.task_q)[ind + 1:])
+        #             should_recheck = True
+        #             break
+        #         elif action == ValidActions.COLLECT:
+        #             if game_map.get_cell_by_pos(target).resource is None or self.cargo_space_left() <= 0:
+        #                 if ind >= len(self.task_q) - 1:
+        #                     self.task_q = deque()
+        #                 else:
+        #                     self.task_q = deque(list(self.task_q)[ind+1:])
+        #                 self.current_task = None
+        #                 should_recheck = True
+        #             break
+        #         elif action == ValidActions.MANAGE and target not in player.city_ids:
+        #             self.current_task = None
+        #             self.task_q = deque()
+        #             return None
 
-        should_recheck = True
-        while should_recheck:
-            should_recheck = False
-            for ind, (action, target) in enumerate(self.task_q):
-                if player.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
-                    if ind >= len(self.task_q) - 1:
-                        self.task_q = deque()
-                    else:
-                        self.task_q = deque(list(self.task_q)[ind + 1:])
-                    should_recheck = True
-                    break
-                elif action == ValidActions.COLLECT and game_map.get_cell_by_pos(target).resource is None:
+        for ind, (action, target) in enumerate(self.task_q):
+            if player.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
+                if ind >= len(self.task_q) - 1:
+                    self.task_q = deque()
+                else:
+                    self.task_q = deque(list(self.task_q)[ind + 1:])
+                    self.current_task = None
+                self.check_for_task_completion(game_map, player)
+            elif action == ValidActions.COLLECT:
+                if game_map.get_cell_by_pos(target).resource is None or self.cargo_space_left() <= 0:
                     if ind >= len(self.task_q) - 1:
                         self.task_q = deque()
                     else:
                         self.task_q = deque(list(self.task_q)[ind+1:])
-                    should_recheck = True
-                    break
+                    self.current_task = None
+                    self.check_for_task_completion(game_map, player)
+            elif action == ValidActions.MANAGE and target not in player.city_ids:
+                self.current_task = None
+                self.task_q = deque()
+                return None
+
+        if self.current_task is None:
+            self.load_next_task()
+            if self.current_task is None:
+                return
 
         action, target = self.current_task
         # if action == ValidActions.MOVE:

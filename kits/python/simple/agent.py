@@ -1,7 +1,7 @@
 from lux.game import Game
 from lux.game_map import Position
-from lux.constants import ValidActions, print_out, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes
-from lux.strategies import starter_strategy, time_based_strategy
+from lux.constants import ValidActions, print, log, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes
+from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
 from collections import deque, Counter, UserDict
 from itertools import chain
 from lux import annotate
@@ -12,10 +12,14 @@ import lux.game_objects as go
 
 
 def set_unit_task(unit, player):
-    if LogicGlobals.game_state.turn < 200:
-        starter_strategy(unit, player)
+    if player.researched_coal():
+        research_based_strategy(unit, player)
     else:
-        time_based_strategy(unit, player)
+        starter_strategy(unit, player)
+    # if LogicGlobals.game_state.turn < 200:
+    #     starter_strategy(unit, player)
+    # else:
+    #     time_based_strategy(unit, player)
 
 
 def update_logic_globals(player):
@@ -50,11 +54,6 @@ def update_logic_globals(player):
                 LogicGlobals.clusters_to_colonize.add(cluster)
         # if cluster.type == Constants.RESOURCE_TYPES.WOOD and cluster.n_defended == 0:
         #     LogicGlobals.clusters_to_colonize.add(cluster)
-
-    if LogicGlobals.resource_cluster_to_defend is not None and (all(
-            LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None for p in
-            LogicGlobals.resource_cluster_to_defend.pos_to_defend) or LogicGlobals.resource_cluster_to_defend.total_amount <= 0):
-        LogicGlobals.resource_cluster_to_defend = None
 
     units_lost = set(go.UNIT_CACHE) - player.unit_ids
     for id_ in units_lost:
@@ -107,7 +106,7 @@ def gather_turn_information(player, opponent):
         c.calculate_score(player, opponent, scaling_factor=LogicGlobals.max_resource_cluster_amount)
 
     for city_id, city in LogicGlobals.player.cities.items():
-        print(f"Turn {LogicGlobals.game_state.turn} city {city_id} managers: {city.managers}", file=print_out)
+        log(f"Turn {LogicGlobals.game_state.turn} city {city_id} managers: {city.managers}")
 
     for __, city in player.cities.items():
         for tile in city.citytiles:
@@ -119,13 +118,18 @@ def gather_turn_information(player, opponent):
             deleted_cities.add(p)
     LogicGlobals.TBS_citytiles = LogicGlobals.TBS_citytiles - deleted_cities
 
+    deleted_cities = set()
+    for p in LogicGlobals.RBS_citytiles:
+        if LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is None:
+            deleted_cities.add(p)
+    LogicGlobals.RBS_citytiles = LogicGlobals.RBS_citytiles - deleted_cities
     # for __, city in player.cities.items():
     #     for tile in city.citytiles:
     #         if LogicGlobals.game_state.turns_until_next_night > 3:  TODO: This fails for managing positions. his may have to depend on cluster resource amount
     #             blocked_positions.discard(tile.pos)
     #         else:
     #             blocked_positions.add(tile.pos)
-    # print(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}", file=print_out)
+    # log(f"Turn {LogicGlobals.game_state.turn} - City {city.cityid} managers: {city.managers}")
 
     return blocked_positions, enemy_blocked_positions
 
@@ -140,7 +144,7 @@ def unit_action_resolution(player, opponent):
 
     # for unit in player.units:
     #     action, target = unit.propose_action(player, LogicGlobals.game_state)
-    #     print(f"Turn {LogicGlobals.game_state.turn}: Unit {unit.id} at {unit.pos} proposed action {action} with target {target}", file=print_out)
+    #     log(f"Turn {LogicGlobals.game_state.turn}: Unit {unit.id} at {unit.pos} proposed action {action} with target {target}")
     #     if action == ValidActions.MOVE:
     #         blocked_positions.discard(unit.pos)
 
@@ -151,15 +155,17 @@ def unit_action_resolution(player, opponent):
         action, target = unit.propose_action(
             player, LogicGlobals.game_state
         )
-        print(
+        log(
             f"Turn {LogicGlobals.game_state.turn}: Unit {unit.id} at {unit.pos} proposed action {action} with target {target}",
-            file=print_out)
+        )
         if action is None:
             continue
         elif action == ValidActions.BUILD:
             actions.append(unit.build_city(logs=debug_info))
             if player.current_strategy == StrategyTypes.TIME_BASED:
                 LogicGlobals.TBS_citytiles.add(unit.pos)
+            elif player.current_strategy == StrategyTypes.RESEARCH_BASED:
+                LogicGlobals.RBS_citytiles.add(unit.pos)
         elif action == ValidActions.TRANSFER:
             actions.append(unit.transfer(*target, logs=debug_info))
             unit.did_just_transfer = True
@@ -214,7 +220,7 @@ def unit_action_resolution(player, opponent):
             dir_to_move, new_pos = unit.dirs_to_move.popleft()
             proposed_positions.setdefault(new_pos, []).append((unit, dir_to_move))
 
-        # print(f"{proposed_positions}", file=print_out)
+        # log(f"{proposed_positions}")
         for pos, units in proposed_positions.items():
             if pos in blocked_positions:
                 continue
@@ -241,36 +247,36 @@ def agent(observation, configuration):
         LogicGlobals.game_state._update(observation["updates"], observation)
 
     ### AI Code goes down here! ###
-    player = LogicGlobals.player = LogicGlobals.game_state.players[observation.player]
-    opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
-    width, height = LogicGlobals.game_state.map.width, LogicGlobals.game_state.map.height
-    update_logic_globals(player)
+    update_logic_globals(LogicGlobals.player)
 
     # actions, debug_info = old_unit_action_resolution(player, opponent)
-    actions, debug_info = unit_action_resolution(player, opponent)
+    actions, debug_info = unit_action_resolution(LogicGlobals.player, LogicGlobals.opponent)
 
-    for _, city in player.cities.items():
+    for _, city in LogicGlobals.player.cities.items():
         for city_tile in city.citytiles:
             if city_tile.can_act():
-                if len(player.units) < player.city_tile_count:
-                    if player.current_strategy == StrategyTypes.STARTER:
+                if len(LogicGlobals.player.units) < LogicGlobals.player.city_tile_count:
+                    if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                         actions.append(city_tile.build_worker())
                         cluster = LogicGlobals.game_state.map.position_to_cluster(city_tile.pos)
                         if cluster is not None:
                             cluster.n_workers_spawned += 1
-                    elif player.current_strategy == StrategyTypes.TIME_BASED:
+                    elif LogicGlobals.player.current_strategy == StrategyTypes.TIME_BASED:
                         if city_tile.pos in LogicGlobals.TBS_citytiles:
                             actions.append(city_tile.build_worker())
+                    elif LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
+                        if city_tile.pos in LogicGlobals.RBS_citytiles:
+                            actions.append(city_tile.build_worker())
                 else:
-                    if player.current_strategy == StrategyTypes.STARTER and not player.researched_uranium():
+                    if LogicGlobals.player.current_strategy == StrategyTypes.STARTER and not LogicGlobals.player.researched_uranium():
                         actions.append(city_tile.research())
-                        player.research_points += 1
+                        LogicGlobals.player.research_points += 1
 
     # DEBUG STUFF
 
     actions.append(
         annotate.sidetext(
-            f"Current Strategy: {player.current_strategy}",
+            f"Current Strategy: {LogicGlobals.player.current_strategy}",
         )
     )
     actions.append(
@@ -296,7 +302,7 @@ def agent(observation, configuration):
 
     actions.append(annotate.sidetext("GOAL TASKS"))
 
-    for unit in player.units:
+    for unit in LogicGlobals.player.units:
         # if unit.current_task is not None:
         #     __, target = unit.current_task
         #     if type(target) is Position:
@@ -318,7 +324,7 @@ def agent(observation, configuration):
 
     actions.append(annotate.sidetext("TASK QUEUE"))
 
-    for unit in player.units:
+    for unit in LogicGlobals.player.units:
         if unit.task_q:
             actions.append(
                 annotate.sidetext(
@@ -343,7 +349,7 @@ def agent(observation, configuration):
 
     actions.append(annotate.sidetext("TASKS"))
 
-    for unit in player.units:
+    for unit in LogicGlobals.player.units:
         if unit.current_task is None:
             actions.append(
                 annotate.sidetext(
