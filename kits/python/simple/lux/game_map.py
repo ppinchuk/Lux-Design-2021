@@ -3,12 +3,9 @@ import math
 import sys
 from random import shuffle
 
-from .constants import Constants, ALL_DIRECTIONS, print_out, STRATEGY_HYPERPARAMETERS
+from .constants import ALL_DIRECTIONS, print_out, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions
 
-DIRECTIONS = Constants.DIRECTIONS
-WOOD = Constants.RESOURCE_TYPES.WOOD
-COAL = Constants.RESOURCE_TYPES.COAL
-URANIUM = Constants.RESOURCE_TYPES.URANIUM
+
 MAX_DISTANCE_FROM_EDGE = STRATEGY_HYPERPARAMETERS['MAX_DISTANCE_FROM_EDGE']
 
 
@@ -233,7 +230,7 @@ class Cell:
 
     def has_resource(self, do_wood_check=False):
         if do_wood_check:
-            return self.resource is not None and ((self.resource.type != WOOD and self.resource.amount > 0) or (self.resource.type == WOOD and self.resource.amount >= 500))
+            return self.resource is not None and ((self.resource.type != ResourceTypes.WOOD and self.resource.amount > 0) or (self.resource.type == ResourceTypes.WOOD and self.resource.amount >= 500))
         else:
             return self.resource is not None and self.resource.amount > 0
 
@@ -369,9 +366,9 @@ class Position:
         self.x = x
         self.y = y
         self._closest_resource_pos = {
-            WOOD: None,
-            COAL: None,
-            URANIUM: None,
+            ResourceTypes.WOOD: None,
+            ResourceTypes.COAL: None,
+            ResourceTypes.URANIUM: None,
         }
         self._closest_city_pos = None
 
@@ -426,10 +423,10 @@ class Position:
 
     def adjacent_positions(self, include_center=True):
         adjacent_positions = {
-            self.translate(DIRECTIONS.NORTH, 1),
-            self.translate(DIRECTIONS.EAST, 1),
-            self.translate(DIRECTIONS.SOUTH, 1),
-            self.translate(DIRECTIONS.WEST, 1),
+            self.translate(Directions.NORTH, 1),
+            self.translate(Directions.EAST, 1),
+            self.translate(Directions.SOUTH, 1),
+            self.translate(Directions.WEST, 1),
         }
         if include_center:
             adjacent_positions.add(self)
@@ -442,15 +439,15 @@ class Position:
         return Position(self.x + x, self.y + y)
 
     def translate(self, direction, units) -> 'Position':
-        if direction == DIRECTIONS.NORTH:
+        if direction == Directions.NORTH:
             return Position(self.x, self.y - units)
-        elif direction == DIRECTIONS.EAST:
+        elif direction == Directions.EAST:
             return Position(self.x + units, self.y)
-        elif direction == DIRECTIONS.SOUTH:
+        elif direction == Directions.SOUTH:
             return Position(self.x, self.y + units)
-        elif direction == DIRECTIONS.WEST:
+        elif direction == Directions.WEST:
             return Position(self.x - units, self.y)
-        elif direction == DIRECTIONS.CENTER:
+        elif direction == Directions.CENTER:
             return Position(self.x, self.y)
 
     def find_closest_city_tile(self, player, game_map):
@@ -516,7 +513,7 @@ class Position:
             Position of closest resource.
 
         """
-        return self._find_closest_resource([WOOD], game_map)
+        return self._find_closest_resource([ResourceTypes.WOOD], game_map)
 
     def find_closest_resource(self, player, game_map, r_type=None):
         """ Find the closest resource to this position.
@@ -542,18 +539,18 @@ class Position:
         if r_type is not None:
             resources_to_consider = [r_type]
         else:
-            resources_to_consider = [WOOD]
+            resources_to_consider = [ResourceTypes.WOOD]
             if player.researched_coal():
-                resources_to_consider.append(COAL)
+                resources_to_consider.append(ResourceTypes.COAL)
             if player.researched_uranium():
-                resources_to_consider.append(URANIUM)
+                resources_to_consider.append(ResourceTypes.URANIUM)
 
         return self._find_closest_resource(resources_to_consider, game_map)
 
     def sort_directions_by_pathing_distance(self, target_pos, game_map, pos_to_check=None, tolerance=None):
 
         if self.distance_to(target_pos) == 0:
-            return DIRECTIONS.CENTER
+            return Directions.CENTER
 
         if pos_to_check is None:
             pos_to_check = {
@@ -569,7 +566,7 @@ class Position:
 
         return sorted(dists, key=dists.get)
 
-    def direction_to(self, target_pos: 'Position', pos_to_check=None, do_shuffle=True) -> DIRECTIONS:
+    def direction_to(self, target_pos: 'Position', pos_to_check=None, do_shuffle=True) -> Directions:
         """ Return closest position to target_pos from this position
 
         Parameters
@@ -591,7 +588,7 @@ class Position:
         """
 
         if self.distance_to(target_pos) == 0:
-            return DIRECTIONS.CENTER
+            return Directions.CENTER
 
         if pos_to_check is None:
             pos_to_check = {

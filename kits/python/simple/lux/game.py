@@ -1,8 +1,6 @@
-from .constants import Constants, GAME_CONSTANTS
+from .constants import GAME_CONSTANTS, InputConstants
 from .game_map import GameMap, Position
 from .game_objects import Player, Unit, City, CityTile
-
-INPUT_CONSTANTS = Constants.INPUT_CONSTANTS
 
 
 class Game:
@@ -47,16 +45,16 @@ class Game:
                 break
             strs = update.split(" ")
             input_identifier = strs[0]
-            if input_identifier == INPUT_CONSTANTS.RESEARCH_POINTS:
+            if input_identifier == InputConstants.RESEARCH_POINTS:
                 team = int(strs[1])
                 self.players[team].research_points = int(strs[2])
-            elif input_identifier == INPUT_CONSTANTS.RESOURCES:
+            elif input_identifier == InputConstants.RESOURCES:
                 r_type = strs[1]
                 x = int(strs[2])
                 y = int(strs[3])
                 amt = int(float(strs[4]))
                 self.map._setResource(r_type, x, y, amt)
-            elif input_identifier == INPUT_CONSTANTS.UNITS:
+            elif input_identifier == InputConstants.UNITS:
                 unittype = int(strs[1])
                 team = int(strs[2])
                 unitid = strs[3]
@@ -69,13 +67,13 @@ class Game:
                 self.players[team].units.append(Unit(team, unittype, unitid, x, y, cooldown, wood, coal, uranium))
                 self.players[team].unit_pos.add(Position(x, y))
                 self.players[team].unit_ids.add(unitid)
-            elif input_identifier == INPUT_CONSTANTS.CITY:
+            elif input_identifier == InputConstants.CITY:
                 team = int(strs[1])
                 cityid = strs[2]
                 fuel = float(strs[3])
                 lightupkeep = float(strs[4])
                 self.players[team].cities[cityid] = City(team, cityid, fuel, lightupkeep)
-            elif input_identifier == INPUT_CONSTANTS.CITY_TILES:
+            elif input_identifier == InputConstants.CITY_TILES:
                 team = int(strs[1])
                 cityid = strs[2]
                 x = int(strs[3])
@@ -86,7 +84,7 @@ class Game:
                 self.map.get_cell(x, y).citytile = citytile
                 self.players[team].city_tile_count += 1
                 self.players[team].city_pos.add(Position(x, y))
-            elif input_identifier == INPUT_CONSTANTS.ROADS:
+            elif input_identifier == InputConstants.ROADS:
                 x = int(strs[1])
                 y = int(strs[2])
                 road = float(strs[3])

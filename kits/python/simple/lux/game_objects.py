@@ -1,10 +1,8 @@
 from typing import Dict
 import sys
 from collections import deque
-from .constants import Constants, ValidActions, print_out, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS
+from .constants import ValidActions, print_out, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS, UnitTypes
 from .game_map import Position
-
-UNIT_TYPES = Constants.UNIT_TYPES
 
 
 class Player:
@@ -155,10 +153,10 @@ class Unit:
         self.cluster_to_defend = None
 
     def is_worker(self) -> bool:
-        return self.type == UNIT_TYPES.WORKER
+        return self.type == UnitTypes.WORKER
 
     def is_cart(self) -> bool:
-        return self.type == UNIT_TYPES.CART
+        return self.type == UnitTypes.CART
 
     def set_task(self, action, target):
         if action not in ValidActions.for_unit(self.type):

@@ -1,5 +1,5 @@
 import sys
-from .constants import Constants, StrategyTypes, LogicGlobals, ValidActions, STRATEGY_HYPERPARAMETERS
+from .constants import StrategyTypes, LogicGlobals, ValidActions, STRATEGY_HYPERPARAMETERS, ResourceTypes
 from .game_map import Position
 from .strategy_utils import reset_unit_tasks, city_tile_to_build, compute_tbs_com, city_tile_to_build_tbs
 
@@ -17,13 +17,13 @@ def starter_strategy(unit, player):
         return
 
     for __, city in player.cities.items():
-        if LogicGlobals.unlocked_uranium and Constants.RESOURCE_TYPES.URANIUM in city.neighbor_resource_types:
+        if LogicGlobals.unlocked_uranium and ResourceTypes.URANIUM in city.neighbor_resource_types:
             if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 80) + 1:
                 unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
                 city.managers.add(unit.id)
                 return
 
-        if LogicGlobals.unlocked_coal and Constants.RESOURCE_TYPES.COAL in city.neighbor_resource_types:
+        if LogicGlobals.unlocked_coal and ResourceTypes.COAL in city.neighbor_resource_types:
             if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 50) + 1:
                 unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
                 city.managers.add(unit.id)

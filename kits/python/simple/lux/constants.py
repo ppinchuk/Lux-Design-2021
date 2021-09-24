@@ -26,32 +26,33 @@ class StrategyTypes:
     TIME_BASED = 'Time-Based'
 
 
-class Constants:
+class InputConstants:
+    RESEARCH_POINTS = "rp"
+    RESOURCES = "r"
+    UNITS = "u"
+    CITY = "c"
+    CITY_TILES = "ct"
+    ROADS = "ccd"
+    DONE = "D_DONE"
 
-    class INPUT_CONSTANTS:
-        RESEARCH_POINTS = "rp"
-        RESOURCES = "r"
-        UNITS = "u"
-        CITY = "c"
-        CITY_TILES = "ct"
-        ROADS = "ccd"
-        DONE = "D_DONE"
 
-    class DIRECTIONS:
-        NORTH = "n"
-        WEST = "w"
-        SOUTH = "s"
-        EAST = "e"
-        CENTER = "c"
+class Directions:
+    NORTH = "n"
+    WEST = "w"
+    SOUTH = "s"
+    EAST = "e"
+    CENTER = "c"
 
-    class UNIT_TYPES:
-        WORKER = 0
-        CART = 1
 
-    class RESOURCE_TYPES:
-        WOOD = "wood"
-        URANIUM = "uranium"
-        COAL = "coal"
+class UnitTypes:
+    WORKER = 0
+    CART = 1
+
+
+class ResourceTypes:
+    WOOD = "wood"
+    URANIUM = "uranium"
+    COAL = "coal"
 
 
 class ValidActions:
@@ -64,9 +65,9 @@ class ValidActions:
 
     @classmethod
     def for_unit(cls, u_type):
-        if u_type == Constants.UNIT_TYPES.WORKER:
+        if u_type == UnitTypes.WORKER:
             return {cls.MOVE, cls.TRANSFER, cls.PILLAGE, cls.BUILD, cls.COLLECT, cls.MANAGE}
-        elif u_type == Constants.UNIT_TYPES.CART:
+        elif u_type == UnitTypes.CART:
             return {cls.MOVE, cls.TRANSFER}
         else:
             return set()
@@ -98,14 +99,14 @@ UNIT_TYPE_AS_STR = {
 
 
 ALL_DIRECTIONS = [
-    Constants.DIRECTIONS.NORTH, Constants.DIRECTIONS.EAST,
-    Constants.DIRECTIONS.SOUTH, Constants.DIRECTIONS.WEST
+    Directions.NORTH, Directions.EAST,
+    Directions.SOUTH, Directions.WEST
 ]
 
 ALL_DIRECTIONS_AND_CENTER = [
-    Constants.DIRECTIONS.NORTH, Constants.DIRECTIONS.EAST,
-    Constants.DIRECTIONS.SOUTH, Constants.DIRECTIONS.WEST,
-    Constants.DIRECTIONS.CENTER
+    Directions.NORTH, Directions.EAST,
+    Directions.SOUTH, Directions.WEST,
+    Directions.CENTER
 ]
 
 if getpass.getuser() == 'Paul':

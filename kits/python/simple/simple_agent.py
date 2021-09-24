@@ -1,6 +1,6 @@
 from lux.game import Game
 from lux.game_map import Cell
-from lux.constants import Constants
+from lux.constants import ResourceTypes
 import math
 
 
@@ -24,8 +24,8 @@ def find_closest_resources(pos, player, resource_tiles):
     closest_resource_tile = None
     for resource_tile in resource_tiles:
         # we skip over resources that we can't mine due to not having researched them
-        if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
-        if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
+        if resource_tile.resource.type == ResourceTypes.COAL and not player.researched_coal(): continue
+        if resource_tile.resource.type == ResourceTypes.URANIUM and not player.researched_uranium(): continue
         dist = resource_tile.pos.distance_to(pos)
         if dist < closest_dist:
             closest_dist = dist

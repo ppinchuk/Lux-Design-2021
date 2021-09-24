@@ -1,5 +1,5 @@
 from itertools import chain
-from .constants import ALL_DIRECTIONS, Constants
+from .constants import ALL_DIRECTIONS, ResourceTypes, Directions
 from .game_map import Position
 
 
@@ -22,7 +22,7 @@ def compute_tbs_com(game_map):
     tot_amount = 0
     x_com = y_com = 0
     for cluster in game_map.resource_clusters:
-        if cluster.type == Constants.RESOURCE_TYPES.WOOD:
+        if cluster.type == ResourceTypes.WOOD:
             tot_amount += cluster.total_amount
             x_com += cluster.total_amount * cluster.center_pos.x
             y_com += cluster.total_amount * cluster.center_pos.y
@@ -47,7 +47,7 @@ def city_tile_to_build_tbs(com_pos, game_map, pos_being_built):
         return None
 
     next_pos = com_pos
-    for d in chain([Constants.DIRECTIONS.CENTER], directions_for_spiral()):
+    for d in chain([Directions.CENTER], directions_for_spiral()):
         next_pos = next_pos.translate(d, 1)
         if not game_map.is_within_bounds(next_pos):
             return None

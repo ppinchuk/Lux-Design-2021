@@ -1,6 +1,6 @@
 from lux.game import Game
 from lux.game_map import Position
-from lux.constants import Constants, ValidActions, print_out, StrategyTypes, LogicGlobals, ALL_DIRECTIONS
+from lux.constants import ValidActions, print_out, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes
 from lux.strategies import starter_strategy, time_based_strategy
 from collections import deque, Counter, UserDict
 from itertools import chain
@@ -9,8 +9,6 @@ import sys
 import lux.game_objects as go
 
 ### Define helper functions
-
-DIRECTIONS = Constants.DIRECTIONS
 
 
 def set_unit_task(unit, player):
@@ -42,10 +40,10 @@ def update_logic_globals(player):
     LogicGlobals.clusters_to_colonize = set()
     for cluster in LogicGlobals.game_state.map.resource_clusters:
         if cluster.total_amount >= 0:
-            if cluster.type == Constants.RESOURCE_TYPES.URANIUM:
+            if cluster.type == ResourceTypes.URANIUM:
                 if LogicGlobals.unlocked_uranium:
                     LogicGlobals.clusters_to_colonize.add(cluster)
-            elif cluster.type == Constants.RESOURCE_TYPES.COAL:
+            elif cluster.type == ResourceTypes.COAL:
                 if LogicGlobals.unlocked_coal:
                     LogicGlobals.clusters_to_colonize.add(cluster)
             else:
