@@ -58,6 +58,21 @@ class ValidActions:
         return {cls.TRANSFER, cls.COLLECT}
 
 
+class LogicGlobals:
+    game_state = None
+    player = None
+    start_tile = None
+    unlocked_coal = False
+    unlocked_uranium = False
+    cities = None
+    pos_being_built = set()
+    resource_cluster_to_defend = None
+    clusters_to_colonize = set()
+    max_resource_cluster_amount = 0
+    TBS_COM = None
+    TBS_citytiles = set()
+
+
 UNIT_TYPE_AS_STR = {
     0: "WORKER",
     1: "CART"

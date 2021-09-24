@@ -1,6 +1,6 @@
 from lux.game import Game
 # from lux.game_map import MAP_CACHE
-from lux.constants import Constants, ALL_DIRECTIONS, ALL_DIRECTIONS_AND_CENTER, ValidActions, print_out, StrategyTypes
+from lux.constants import ValidActions, print_out, StrategyTypes, LogicGlobals
 from lux.strategy_utils import *
 from collections import deque, Counter, UserDict
 from itertools import chain
@@ -208,21 +208,6 @@ def set_unit_task(unit, player):
         starter_strategy(unit, player)
     else:
         time_based_strategy(unit, player)
-
-
-class LogicGlobals:
-    game_state = Game()
-    player = None
-    start_tile = None
-    unlocked_coal = False
-    unlocked_uranium = False
-    cities = None
-    pos_being_built = set()
-    resource_cluster_to_defend = None
-    clusters_to_colonize = set()
-    max_resource_cluster_amount = 0
-    TBS_COM = None
-    TBS_citytiles = set()
 
 
 def update_logic_globals(player):
@@ -440,6 +425,7 @@ def agent(observation, configuration):
 
     ### Do not edit ###
     if observation["step"] == 0:
+        LogicGlobals.game_state = Game()
         LogicGlobals.game_state._initialize(observation["updates"])
         LogicGlobals.game_state._update(observation["updates"][2:], observation)
         LogicGlobals.game_state.id = observation.player
