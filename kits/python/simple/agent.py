@@ -138,19 +138,48 @@ def time_based_strategy(unit, player):
         print(f"New TBS COM is: {LogicGlobals.TBS_COM}", file=sys.stderr)
 
     # TODO: WHAT IF THERE IS NO MORE WOOD??
-    new_city_pos = city_tile_to_build_tbs(
-        LogicGlobals.TBS_COM,
-        LogicGlobals.game_state.map,
-        LogicGlobals.pos_being_built
-    )
-    if new_city_pos is not None:
-        unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
-        LogicGlobals.pos_being_built.add(new_city_pos)
+    if len(LogicGlobals.pos_being_built | LogicGlobals.TBS_citytiles) < STRATEGY_CONSTANTS['TBS']['LAST_DITCH_NUMBER_OF_WORKERS_RATIO'] * len(player.units):
+        new_city_pos = city_tile_to_build_tbs(
+            LogicGlobals.TBS_COM,
+            LogicGlobals.game_state.map,
+            LogicGlobals.pos_being_built
+        )
+        if new_city_pos is not None:
+            unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
+            LogicGlobals.pos_being_built.add(new_city_pos)
+            LogicGlobals.TBS_citytiles.add(new_city_pos)
+            return
+
+    center_city_tile_pos = {
+        p for p in LogicGlobals.TBS_citytiles
+        if LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None
+    }
+    if center_city_tile_pos:
+        city_id = LogicGlobals.game_state.map.get_cell_by_pos(
+            center_city_tile_pos.pop()
+        ).citytile.cityid
+        unit.set_task(action=ValidActions.MANAGE, target=city_id)
+    # else:
+    #     if unit.cargo_space_left() > 0:
+    #         closest_resource = LogicGlobals.TBS_COM.find_closest_resource(
+    #                 player, LogicGlobals.game_state.map
+    #             )
+    #         if closest_resource is not None:
+    #             unit.set_task(action=ValidActions.COLLECT, target=closest_resource)
+    #             return
+    # if any(
+    #         LogicGlobals.game_state.map.get_cell_by_pos(p).resource is not None
+    #         for p in unit.pos.adjacent_positions()
+    # ):
+    #     unit.set_task(ValidActions.MOVE, target=LogicGlobals.TBS_COM.translate(Constants.DIRECTIONS.WEST, 2))
 
 
 def set_unit_task(unit, player):
-    starter_strategy(unit, player)
-    # time_based_strategy(unit, player)
+    if LogicGlobals.game_state.turn < 160:
+        starter_strategy(unit, player)
+    else:
+        time_based_strategy(unit, player)
+
 
 class LogicGlobals:
     game_state = Game()
@@ -352,7 +381,7 @@ def unit_action_resolution(player, opponent):
     actions = []
     blocked_positions, enemy_blocked_positions = gather_turn_information(player, opponent)
 
-    for unit in player.units:
+    for unit in sorted(player.units, key=lambda u: u.cargo.wood)[::-1]:
         if unit.current_task is None:
             set_unit_task(unit, player)
 
@@ -465,10 +494,14 @@ def agent(observation, configuration):
         for city_tile in city.citytiles:
             if city_tile.can_act():
                 if len(player.units) < player.city_tile_count:
-                    actions.append(city_tile.build_worker())
-                    cluster = LogicGlobals.game_state.map.position_to_cluster(city_tile.pos)
-                    if cluster is not None:
-                        cluster.n_workers_spawned += 1
+                    if player.current_strategy == StrategyTypes.STARTER:
+                        actions.append(city_tile.build_worker())
+                        cluster = LogicGlobals.game_state.map.position_to_cluster(city_tile.pos)
+                        if cluster is not None:
+                            cluster.n_workers_spawned += 1
+                    elif player.current_strategy == StrategyTypes.TIME_BASED:
+                        if city_tile.pos in LogicGlobals.TBS_citytiles:
+                            actions.append(city_tile.build_worker())
                 else:
                     if player.current_strategy == StrategyTypes.STARTER and not player.researched_uranium():
                         actions.append(city_tile.research())
