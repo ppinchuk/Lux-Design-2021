@@ -155,18 +155,47 @@ def time_based_strategy(unit, player):
         if LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is not None
     }
     if center_city_tile_pos:
+        print("SHOULD SET MANAGE!!!!!", file=sys.stderr)
         city_id = LogicGlobals.game_state.map.get_cell_by_pos(
             center_city_tile_pos.pop()
         ).citytile.cityid
         unit.set_task(action=ValidActions.MANAGE, target=city_id)
-    # else:
-    #     if unit.cargo_space_left() > 0:
-    #         closest_resource = LogicGlobals.TBS_COM.find_closest_resource(
-    #                 player, LogicGlobals.game_state.map
-    #             )
-    #         if closest_resource is not None:
-    #             unit.set_task(action=ValidActions.COLLECT, target=closest_resource)
-    #             return
+    # if LogicGlobals.TBS_citytiles:
+    #     print("SHOULD SET MANAGE!!!!!", file=sys.stderr)
+    #     city_id = LogicGlobals.game_state.map.get_cell_by_pos(
+    #         list(LogicGlobals.TBS_citytiles)[0]
+    #     ).citytile.cityid
+    #     unit.set_task(action=ValidActions.MANAGE, target=city_id)
+    else:
+        if unit.cargo_space_left() > 0:
+            closest_resource = unit.pos.find_closest_resource(
+                    player, LogicGlobals.game_state.map
+                )
+            if closest_resource is not None:
+                unit.set_task(action=ValidActions.COLLECT, target=closest_resource)
+                return
+        else:
+            closest_cluster = LogicGlobals.game_state.map.position_to_cluster(
+                LogicGlobals.TBS_COM.find_closest_resource(
+                    player, LogicGlobals.game_state.map
+                )
+            )
+            # mid_point = Position(
+            #     round((LogicGlobals.TBS_COM.x - closest_cluster.center_pos.x) / 2 + closest_cluster.center_pos.x),
+            #     round((LogicGlobals.TBS_COM.y - closest_cluster.center_pos.y) / 2 + closest_cluster.center_pos.y),
+            # )
+            # mid_point = Position(
+            #     round(2 * LogicGlobals.TBS_COM.x - closest_cluster.center_pos.x),
+            #     round(2 * LogicGlobals.TBS_COM.y - closest_cluster.center_pos.y),
+            # )
+            mid_point = Position(
+                round((LogicGlobals.TBS_COM.x - closest_cluster.center_pos.x) * 0.65 + closest_cluster.center_pos.x),
+                round((LogicGlobals.TBS_COM.y - closest_cluster.center_pos.y) * 0.65 + closest_cluster.center_pos.y),
+            )
+            unit.set_task(
+                ValidActions.MOVE,
+                target=unit.pos.translate(unit.pos.direction_to(mid_point), 1)
+            )
     # if any(
     #         LogicGlobals.game_state.map.get_cell_by_pos(p).resource is not None
     #         for p in unit.pos.adjacent_positions()
@@ -175,7 +204,7 @@ def time_based_strategy(unit, player):
 
 
 def set_unit_task(unit, player):
-    if LogicGlobals.game_state.turn < 160:
+    if LogicGlobals.game_state.turn < 200:
         starter_strategy(unit, player)
     else:
         time_based_strategy(unit, player)
@@ -291,6 +320,12 @@ def gather_turn_information(player, opponent):
         for tile in city.citytiles:
             blocked_positions.discard(tile.pos)
 
+    deleted_cities = set()
+    for p in LogicGlobals.TBS_citytiles:
+        if LogicGlobals.game_state.map.get_cell_by_pos(p).citytile is None:
+            deleted_cities.add(p)
+    LogicGlobals.TBS_citytiles = LogicGlobals.TBS_citytiles - deleted_cities
+
     # for __, city in player.cities.items():
     #     for tile in city.citytiles:
     #         if LogicGlobals.game_state.turns_until_next_night > 3:  TODO: This fails for managing positions. his may have to depend on cluster resource amount
@@ -405,6 +440,8 @@ def unit_action_resolution(player, opponent):
             continue
         elif action == ValidActions.BUILD:
             actions.append(unit.build_city(logs=debug_info))
+            if player.current_strategy == StrategyTypes.TIME_BASED:
+                LogicGlobals.TBS_citytiles.add(unit.pos)
         elif action == ValidActions.TRANSFER:
             actions.append(unit.transfer(*target, logs=debug_info))
             unit.did_just_transfer = True
@@ -431,7 +468,8 @@ def unit_action_resolution(player, opponent):
                 pos_to_check[direction] = new_pos
             if not pos_to_check:
                 unit.turns_spent_waiting_to_move += 1
-                blocked_positions.add(unit.pos)
+                if unit.pos not in player.city_pos:
+                    blocked_positions.add(unit.pos)
                 continue
             unit.dirs_to_move = unit.pos.sort_directions_by_pathing_distance(
                 target, LogicGlobals.game_state.map,
@@ -440,7 +478,8 @@ def unit_action_resolution(player, opponent):
             unit.dirs_to_move = deque((d, pos_to_check[d]) for d in unit.dirs_to_move)
             if not unit.dirs_to_move:
                 unit.turns_spent_waiting_to_move += 1
-                blocked_positions.add(unit.pos)
+                if unit.pos not in player.city_pos:
+                    blocked_positions.add(unit.pos)
                 continue
             units_wanting_to_move.add(unit)
 
@@ -451,7 +490,8 @@ def unit_action_resolution(player, opponent):
             if not unit.dirs_to_move:
                 units_that_cant_move.add(unit)
                 unit.turns_spent_waiting_to_move += 1
-                blocked_positions.add(unit.pos)
+                if unit.pos not in player.city_pos:
+                    blocked_positions.add(unit.pos)
                 continue
             dir_to_move, new_pos = unit.dirs_to_move.popleft()
             proposed_positions.setdefault(new_pos, []).append((unit, dir_to_move))
