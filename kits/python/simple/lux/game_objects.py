@@ -224,7 +224,7 @@ class Unit:
                         return self.propose_action(player, game_state)
 
         elif action == ValidActions.MANAGE:
-            if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=False) > 0 for p in  player.cities[target].resource_positions):
+            if target in player.cities and player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=False) > 0 for p in  player.cities[target].resource_positions):
                 for target_pos in player.cities[target].resource_positions:
                     if game_state.map.num_adjacent_resources(target_pos, do_wood_check=True) > 0:
                         self.push_task((ValidActions.MOVE, target_pos))
@@ -315,7 +315,7 @@ class Unit:
         while should_recheck:
             should_recheck = False
             for ind, (action, target) in enumerate(self.task_q):
-                if action == ValidActions.BUILD and game_map.position_to_cluster(target) is None and player.current_strategy == StrategyTypes.STARTER:
+                if player.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
                     if ind >= len(self.task_q) - 1:
                         self.task_q = deque()
                     else:
@@ -340,7 +340,7 @@ class Unit:
             if self.cargo_space_left() <= 0 or game_map.get_cell_by_pos(target).resource is None:
                 self.current_task = None
         elif action == ValidActions.BUILD:
-            if game_map.get_cell_by_pos(target).citytile is not None or game_map.position_to_cluster(target) is None:
+            if game_map.get_cell_by_pos(target).citytile is not None or (player.current_strategy == StrategyTypes.STARTER and game_map.position_to_cluster(target) is None):
                 self.should_avoid_citytiles = False
                 self.current_task = None
                 self.has_colonized = True
