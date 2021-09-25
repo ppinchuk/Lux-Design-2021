@@ -25,14 +25,14 @@ class Game:
         self.players[1].cities = {}
         self.players[1].city_tile_count = 0
 
-    def _update(self, messages, observation):
+    def _update(self, messages, player_id):
         """
         update state
         """
         if LogicGlobals.player is None:
-            LogicGlobals.player = LogicGlobals.game_state.players[observation.player]
+            LogicGlobals.player = LogicGlobals.game_state.players[player_id]
         if LogicGlobals.opponent is None:
-            LogicGlobals.opponent = LogicGlobals.game_state.players[(observation.player + 1) % 2]
+            LogicGlobals.opponent = LogicGlobals.game_state.players[(player_id + 1) % 2]
         self.map = GameMap(self.map_width, self.map_height)
         self.turn += 1
         self.turns_until_next_night = max(0,

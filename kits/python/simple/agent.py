@@ -1,6 +1,6 @@
 from lux.game import Game
 from lux.game_map import Position
-from lux.constants import ValidActions, print, log, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes
+from lux.constants import ValidActions, log, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes
 from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
 from collections import deque, Counter, UserDict
 from itertools import chain
@@ -233,10 +233,10 @@ def agent(observation, configuration):
     ### Do not edit ###
     if observation["step"] == 0:
         LogicGlobals.game_state = Game(*observation["updates"][:2])
-        LogicGlobals.game_state._update(observation["updates"][2:], observation)
+        LogicGlobals.game_state._update(observation["updates"][2:], observation.player)
         LogicGlobals.game_state.id = observation.player
     else:
-        LogicGlobals.game_state._update(observation["updates"], observation)
+        LogicGlobals.game_state._update(observation["updates"], observation.player)
 
     ### AI Code goes down here! ###
     update_logic_globals(LogicGlobals.player)
