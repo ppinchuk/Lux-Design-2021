@@ -90,7 +90,7 @@ class Game:
                 y = int(strs[2])
                 road = float(strs[3])
                 self.map.get_cell(x, y).road = road
+
         if self.map.resource_clusters is None:
             self.map.find_clusters()
-        opponent = self.players[(observation.player + 1) % 2]
-        self.map.update_clusters(opponent)
+        self.map.update_clusters(LogicGlobals.opponent)
