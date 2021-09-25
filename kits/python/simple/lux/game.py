@@ -18,21 +18,13 @@ class Game:
         print("D_FINISH")
 
     def _reset_player_states(self):
-        self.players[0].units = []
-        self.players[0].cities = {}
-        self.players[0].city_tile_count = 0
-        self.players[1].units = []
-        self.players[1].cities = {}
-        self.players[1].city_tile_count = 0
+        for p in self.players:
+            p.reset_turn_state()
 
     def update(self, messages, player_id):
         """
         update state
         """
-        if LogicGlobals.player is None:
-            LogicGlobals.player = LogicGlobals.game_state.players[player_id]
-        if LogicGlobals.opponent is None:
-            LogicGlobals.opponent = LogicGlobals.game_state.players[(player_id + 1) % 2]
         self.map = GameMap(self.map_width, self.map_height)
         self.turn += 1
         self.turns_until_next_night = max(0,
@@ -91,6 +83,8 @@ class Game:
                 road = float(strs[3])
                 self.map.get_cell(x, y).road = road
 
+        LogicGlobals.player = LogicGlobals.game_state.players[player_id]
+        LogicGlobals.opponent = LogicGlobals.game_state.players[(player_id + 1) % 2]
         if self.map.resource_clusters is None:
             self.map.find_clusters()
         self.map.update_clusters(LogicGlobals.opponent)

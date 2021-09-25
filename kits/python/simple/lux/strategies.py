@@ -236,6 +236,9 @@ def research_based_strategy(unit, player):
     if LogicGlobals.RBS_rtype is None:
         set_rbs_rtype()
 
+    if unit.is_cart():
+        return
+
     if not LogicGlobals.clusters_to_colonize_rbs and any(
         c.type == LogicGlobals.RBS_rtype
         for c in LogicGlobals.game_state.map.resource_clusters

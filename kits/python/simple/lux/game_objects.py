@@ -18,6 +18,15 @@ class Player:
         self.unit_ids = set()
         self.current_strategy = None
 
+    def reset_turn_state(self):
+        self.units = []
+        self.cities = {}
+        self.city_tile_count = 0
+        self.city_pos = set()
+        self.city_ids = set()
+        self.unit_pos = set()
+        self.unit_ids = set()
+
     def researched_coal(self) -> bool:
         return self.research_points >= GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]
 
@@ -35,6 +44,12 @@ class City:
         self.managers = set()
         self.resource_positions = []
         self.neighbor_resource_types = set()
+
+    def __eq__(self, other) -> bool:
+        return self.cityid == other.cityid
+
+    def __hash__(self):
+        return hash(self.cityid)
 
     def __repr__(self) -> str:
         return f"City({self.cityid})"
@@ -70,6 +85,13 @@ class CityTile:
         self.team = teamid
         self.pos = Position(x, y)
         self.cooldown = cooldown
+        self.cluster_to_defend_id = None
+
+    def __eq__(self, other) -> bool:
+        return (self.cityid == other.cityid) and (self.pos == other.pos)
+
+    def __hash__(self):
+        return hash((self.cityid, self.pos.x, self.pos.y))
 
     def can_act(self) -> bool:
         """
@@ -102,8 +124,8 @@ class Cargo:
         self.coal = coal
         self.uranium = uranium
 
-    def __str__(self) -> str:
-        return f"Cargo | Wood: {self.wood}, Coal: {self.coal}, Uranium: {self.uranium}"
+    def __repr__(self) -> str:
+        return f"Cargo(Wood: {self.wood}, Coal: {self.coal}, Uranium: {self.uranium})"
 
 
 UNIT_CACHE = {}
@@ -147,6 +169,15 @@ class Unit:
                 'cluster_to_defend_id'
             ]
         }
+
+    def __eq__(self, other) -> bool:
+        return self.id == other.id
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __repr__(self) -> str:
+        return f"Unit({self.type_str} at {self.pos} with cargo {self.cargo})"
 
     def reset(self):
         self.current_task = None
@@ -379,7 +410,13 @@ class Unit:
             if self.cargo_space_left() <= 0 or game_map.get_cell_by_pos(target).resource is None:
                 self.current_task = None
         elif action == ValidActions.BUILD:
-            if game_map.get_cell_by_pos(target).citytile is not None or (player.current_strategy == StrategyTypes.STARTER and game_map.position_to_cluster(target) is None):
+            city_tile = game_map.get_cell_by_pos(target).citytile
+            if city_tile is not None:
+                city_tile.cluster_to_defend_id = self.cluster_to_defend_id
+                self.should_avoid_citytiles = False
+                self.current_task = None
+                self.has_colonized = True
+            elif player.current_strategy == StrategyTypes.STARTER and game_map.position_to_cluster(target) is None:
                 self.should_avoid_citytiles = False
                 self.current_task = None
                 self.has_colonized = True

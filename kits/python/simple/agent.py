@@ -1,6 +1,6 @@
 from lux.game import Game
 from lux.game_map import Position
-from lux.constants import ValidActions, log, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes
+from lux.constants import ValidActions, log, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS
 from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
 from collections import deque, Counter, UserDict
 from itertools import chain
@@ -51,6 +51,13 @@ def update_logic_globals(player):
     units_lost = set(go.UNIT_CACHE) - player.unit_ids
     for id_ in units_lost:
         go.UNIT_CACHE.pop(id_)
+
+    LogicGlobals.RBS_cluster_carts = {}
+    for unit in LogicGlobals.player.units:
+        if unit.is_cart():
+            if unit.id not in go.UNIT_CACHE:
+                unit.cluster_to_defend_id = LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile.cluster_to_defend_id
+            LogicGlobals.RBS_cluster_carts.get(unit.cluster_to_defend_id, set()).add(unit.id)
 
 
 def gather_turn_information(player, opponent):
@@ -257,6 +264,12 @@ def agent(observation, configuration):
                         if city_tile.pos in LogicGlobals.TBS_citytiles:
                             actions.append(city_tile.build_worker())
                     elif LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
+                        if city_tile.cluster_to_defend_id is not None:
+                            existing_carts = LogicGlobals.RBS_cluster_carts.get(city_tile.cluster_to_defend_id, set())
+                            if len(existing_carts) < STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['MAX_CARTS_PER_CLUSTER']:
+                                actions.append(city_tile.build_cart())
+                                LogicGlobals.RBS_cluster_carts[city_tile.cluster_to_defend_id] = existing_carts.add(f"Pending_cart_{city_tile.pos}")
+                                continue
                         if city_tile.pos in LogicGlobals.RBS_citytiles:
                             actions.append(city_tile.build_worker())
                 else:

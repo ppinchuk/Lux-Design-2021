@@ -14,11 +14,13 @@
   },
   "RBS": {
     "COAL": {
+      "MAX_CARTS_PER_CLUSTER": 1,
       "WORKERS_INITIAL": 4,
       "WORKERS_MAINTENANCE": 1,
       "CART_RETURN": 1
     },
     "URANIUM": {
+      "MAX_CARTS_PER_CLUSTER": 1,
       "WORKERS_INITIAL": 4,
       "WORKERS_MAINTENANCE": 1,
       "CART_RETURN": 1

@@ -94,6 +94,7 @@ class LogicGlobals:
     RBS_rtype = None
     clusters_to_colonize_rbs = {}
     RBS_citytiles = set()
+    RBS_cluster_carts = {}
 
 
 UNIT_TYPE_AS_STR = {
