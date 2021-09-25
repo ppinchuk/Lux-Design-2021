@@ -454,9 +454,6 @@ class Position:
             adjacent_positions.add(self)
         return adjacent_positions
 
-    def equals(self, pos):
-        return self == pos
-
     def shift_by(self, x, y) -> 'Position':
         return Position(self.x + x, self.y + y)
 
