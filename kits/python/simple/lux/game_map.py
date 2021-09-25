@@ -87,103 +87,112 @@ class ResourceCluster:
             cell.resource.amount for cell in cells # if cell.resource is not None
         ) if cells else 0
 
-        if not cells:
-            self._resource_positions = dict()
-            self.pos_to_defend = []
-        elif not self.pos_to_defend or len(cells) != len(self._resource_positions):
-            self._resource_positions = dict()
-            for cell in cells:
-                self._resource_positions[cell.pos] = None
+        self._resource_positions = dict()
+        for cell in cells:
+            self._resource_positions[cell.pos] = None
 
-            x_vals = [p.x for p in self._resource_positions.keys()]
-            y_vals = [p.y for p in self._resource_positions.keys()]
+        self.pos_to_defend = set()
+        if LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
+            if self.id in LogicGlobals.clusters_to_colonize_rbs:
+                for x in range(self.min_loc[0] - 1, self.max_loc[0] + 2):
+                    for y in range(self.min_loc[1] - 1, self.max_loc[1] + 2):
+                        if game_map.is_loc_within_bounds(x, y):
+                            if game_map.get_cell(x, y).is_empty():
+                                self.pos_to_defend.add(Position(x, y))
+        else:
+            if not cells:
+                self.pos_to_defend = []
+            elif not self.pos_to_defend or len(cells) != len(self._resource_positions):
 
-            self.min_loc = (min(x_vals), min(y_vals))
-            self.max_loc = (max(x_vals), max(y_vals))
-            self.center_pos = Position(
-                (self.max_loc[0] - self.min_loc[0]) // 2 + self.min_loc[0],
-                (self.max_loc[1] - self.min_loc[1]) // 2 + self.min_loc[1],
-            )
-            self.pos_to_defend = set()
-            if self.min_loc[1] < MAX_DISTANCE_FROM_EDGE:
-                if self.min_loc[0] >= MAX_DISTANCE_FROM_EDGE:
-                    self.pos_to_defend = self.pos_to_defend | {
-                        Position(self.min_loc[0] - 1, y)
-                        for y in range(0, self.min_loc[1] + 1)
-                        if game_map.is_loc_within_bounds(self.min_loc[0] - 1, y)
-                    }
-                if self.max_loc[0] < game_map.width - MAX_DISTANCE_FROM_EDGE:
-                    self.pos_to_defend = self.pos_to_defend | {
-                        Position(self.max_loc[0] + 1, y)
-                        for y in range(0, self.min_loc[1] + 1)
-                        if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
-                    }
-            else:
-                self.pos_to_defend = self.pos_to_defend | {
-                    Position(x, self.min_loc[1] - 1)
-                    for x in range(self.min_loc[0], self.max_loc[0] + 1)
-                    if game_map.is_loc_within_bounds(x, self.min_loc[1] - 1)
-                }
+                x_vals = [p.x for p in self._resource_positions.keys()]
+                y_vals = [p.y for p in self._resource_positions.keys()]
 
-            if self.max_loc[1] > game_map.height - MAX_DISTANCE_FROM_EDGE - 1:
-                if self.min_loc[0] >= MAX_DISTANCE_FROM_EDGE:
-                    self.pos_to_defend = self.pos_to_defend | {
-                        Position(self.min_loc[0] - 1, y)
-                        for y in range(self.max_loc[1], game_map.height)
-                        if game_map.is_loc_within_bounds(self.min_loc[0] - 1, y)
-                    }
-                if self.max_loc[0] < game_map.width - MAX_DISTANCE_FROM_EDGE:
-                    self.pos_to_defend = self.pos_to_defend | {
-                        Position(self.max_loc[0] + 1, y)
-                        for y in range(self.max_loc[1], game_map.height)
-                        if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
-                    }
-            else:
-                self.pos_to_defend = self.pos_to_defend | {
-                    Position(x, self.max_loc[1] + 1)
-                    for x in range(self.min_loc[0], self.max_loc[0] + 1)
-                    if game_map.is_loc_within_bounds(x, self.max_loc[1] + 1)
-                }
+                self.min_loc = (min(x_vals), min(y_vals))
+                self.max_loc = (max(x_vals), max(y_vals))
+                self.center_pos = Position(
+                    (self.max_loc[0] - self.min_loc[0]) // 2 + self.min_loc[0],
+                    (self.max_loc[1] - self.min_loc[1]) // 2 + self.min_loc[1],
+                )
 
-            if self.min_loc[0] < MAX_DISTANCE_FROM_EDGE:
-                if self.min_loc[1] >= MAX_DISTANCE_FROM_EDGE:
+                if self.min_loc[1] < MAX_DISTANCE_FROM_EDGE:
+                    if self.min_loc[0] >= MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(self.min_loc[0] - 1, y)
+                            for y in range(0, self.min_loc[1] + 1)
+                            if game_map.is_loc_within_bounds(self.min_loc[0] - 1, y)
+                        }
+                    if self.max_loc[0] < game_map.width - MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(self.max_loc[0] + 1, y)
+                            for y in range(0, self.min_loc[1] + 1)
+                            if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
+                        }
+                else:
                     self.pos_to_defend = self.pos_to_defend | {
                         Position(x, self.min_loc[1] - 1)
-                        for x in range(0, self.min_loc[0] + 1)
+                        for x in range(self.min_loc[0], self.max_loc[0] + 1)
                         if game_map.is_loc_within_bounds(x, self.min_loc[1] - 1)
                     }
-                if self.max_loc[1] < game_map.height - MAX_DISTANCE_FROM_EDGE:
-                    self.pos_to_defend = self.pos_to_defend | {
-                        Position(x, self.max_loc[1] + 1)
-                        for x in range(0, self.min_loc[0] + 1)
-                        if game_map.is_loc_within_bounds(x, self.max_loc[1] + 1)
-                    }
-            else:
-                self.pos_to_defend = self.pos_to_defend | {
-                    Position(self.min_loc[0] - 1, y)
-                    for y in range(self.min_loc[1], self.max_loc[1] + 1)
-                    if game_map.is_loc_within_bounds(self.min_loc[0] - 1, y)
-                }
 
-            if self.max_loc[0] > game_map.width - MAX_DISTANCE_FROM_EDGE - 1:
-                if self.min_loc[1] >= MAX_DISTANCE_FROM_EDGE:
-                    self.pos_to_defend = self.pos_to_defend | {
-                        Position(x, self.min_loc[1] - 1)
-                        for x in range(self.max_loc[0], game_map.width)
-                        if game_map.is_loc_within_bounds(x, self.min_loc[1] - 1)
-                    }
-                if self.max_loc[1] < game_map.height - MAX_DISTANCE_FROM_EDGE:
+                if self.max_loc[1] > game_map.height - MAX_DISTANCE_FROM_EDGE - 1:
+                    if self.min_loc[0] >= MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(self.min_loc[0] - 1, y)
+                            for y in range(self.max_loc[1], game_map.height)
+                            if game_map.is_loc_within_bounds(self.min_loc[0] - 1, y)
+                        }
+                    if self.max_loc[0] < game_map.width - MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(self.max_loc[0] + 1, y)
+                            for y in range(self.max_loc[1], game_map.height)
+                            if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
+                        }
+                else:
                     self.pos_to_defend = self.pos_to_defend | {
                         Position(x, self.max_loc[1] + 1)
-                        for x in range(self.max_loc[0], game_map.width)
+                        for x in range(self.min_loc[0], self.max_loc[0] + 1)
                         if game_map.is_loc_within_bounds(x, self.max_loc[1] + 1)
                     }
-            else:
-                self.pos_to_defend = self.pos_to_defend | {
-                    Position(self.max_loc[0] + 1, y)
-                    for y in range(self.min_loc[1], self.max_loc[1] + 1)
-                    if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
-                }
+
+                if self.min_loc[0] < MAX_DISTANCE_FROM_EDGE:
+                    if self.min_loc[1] >= MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(x, self.min_loc[1] - 1)
+                            for x in range(0, self.min_loc[0] + 1)
+                            if game_map.is_loc_within_bounds(x, self.min_loc[1] - 1)
+                        }
+                    if self.max_loc[1] < game_map.height - MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(x, self.max_loc[1] + 1)
+                            for x in range(0, self.min_loc[0] + 1)
+                            if game_map.is_loc_within_bounds(x, self.max_loc[1] + 1)
+                        }
+                else:
+                    self.pos_to_defend = self.pos_to_defend | {
+                        Position(self.min_loc[0] - 1, y)
+                        for y in range(self.min_loc[1], self.max_loc[1] + 1)
+                        if game_map.is_loc_within_bounds(self.min_loc[0] - 1, y)
+                    }
+
+                if self.max_loc[0] > game_map.width - MAX_DISTANCE_FROM_EDGE - 1:
+                    if self.min_loc[1] >= MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(x, self.min_loc[1] - 1)
+                            for x in range(self.max_loc[0], game_map.width)
+                            if game_map.is_loc_within_bounds(x, self.min_loc[1] - 1)
+                        }
+                    if self.max_loc[1] < game_map.height - MAX_DISTANCE_FROM_EDGE:
+                        self.pos_to_defend = self.pos_to_defend | {
+                            Position(x, self.max_loc[1] + 1)
+                            for x in range(self.max_loc[0], game_map.width)
+                            if game_map.is_loc_within_bounds(x, self.max_loc[1] + 1)
+                        }
+                else:
+                    self.pos_to_defend = self.pos_to_defend | {
+                        Position(self.max_loc[0] + 1, y)
+                        for y in range(self.min_loc[1], self.max_loc[1] + 1)
+                        if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
+                    }
 
             log(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}")
 
@@ -202,13 +211,13 @@ class ResourceCluster:
             #     self.pos_to_defend, key=opponent_med_pos.distance_to
             # )
 
-            closest_opponent_pos = min(
-                opponent.city_pos | opponent.unit_pos,
-                key=self.center_pos.distance_to
-            )
-            self.pos_to_defend = sorted(
-                self.pos_to_defend, key=closest_opponent_pos.distance_to
-            )
+        closest_opponent_pos = min(
+            opponent.city_pos | opponent.unit_pos,
+            key=self.center_pos.distance_to
+        )
+        self.pos_to_defend = sorted(
+            self.pos_to_defend, key=closest_opponent_pos.distance_to
+        )
 
         self.city_ids = set()
         self.pos_defended = []
