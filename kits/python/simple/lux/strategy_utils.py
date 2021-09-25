@@ -97,7 +97,7 @@ def find_clusters_to_colonize_rbs():
     if len(clusters_to_colonize) > max_num_clusters:
         unit_med_pos = med_position([u.pos for u in LogicGlobals.player.units])
         clusters_to_colonize = sorted(
-            clusters_to_colonize, key=lambda c: (c.total_amount, c.center_pos.distance_to(unit_med_pos))
+            clusters_to_colonize, key=lambda c: (c.total_amount, -c.center_pos.distance_to(unit_med_pos))
         )[:-1-max_num_clusters:-1]
 
     for c in clusters_to_colonize:
@@ -110,6 +110,6 @@ def find_clusters_to_colonize_rbs():
             key=lambda c: (sum(
                 p in LogicGlobals.opponent.city_pos
                 for p in c.pos_to_defend
-            ), c.center_pos.distance_to(unit_med_pos))
+            ), -c.center_pos.distance_to(unit_med_pos))
         )[0]
         LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id] = set()
