@@ -233,10 +233,10 @@ def agent(observation, configuration):
     ### Do not edit ###
     if observation["step"] == 0:
         LogicGlobals.game_state = Game(*observation["updates"][:2])
-        LogicGlobals.game_state._update(observation["updates"][2:], observation.player)
+        LogicGlobals.game_state.update(observation["updates"][2:], observation.player)
         LogicGlobals.game_state.id = observation.player
     else:
-        LogicGlobals.game_state._update(observation["updates"], observation.player)
+        LogicGlobals.game_state.update(observation["updates"], observation.player)
 
     ### AI Code goes down here! ###
     update_logic_globals(LogicGlobals.player)

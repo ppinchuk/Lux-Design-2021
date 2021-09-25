@@ -25,7 +25,7 @@ class Game:
         self.players[1].cities = {}
         self.players[1].city_tile_count = 0
 
-    def _update(self, messages, player_id):
+    def update(self, messages, player_id):
         """
         update state
         """
