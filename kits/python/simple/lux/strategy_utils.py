@@ -95,7 +95,7 @@ def find_clusters_to_colonize_rbs():
     max_num_clusters = len(LogicGlobals.player.unit_ids) // STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['WORKERS_INITIAL']
     print(f"Player has {len(LogicGlobals.player.unit_ids)} units, so num RBS clusters is: {max_num_clusters} (Minimum {STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['WORKERS_INITIAL']} per cluster)")
     if len(clusters_to_colonize) > max_num_clusters:
-        unit_med_pos = med_position(LogicGlobals.player.unit_pos)
+        unit_med_pos = med_position([u.pos for u in LogicGlobals.player.units])
         clusters_to_colonize = sorted(
             clusters_to_colonize, key=lambda c: (c.total_amount, c.center_pos.distance_to(unit_med_pos))
         )[:-1-max_num_clusters:-1]
@@ -104,7 +104,7 @@ def find_clusters_to_colonize_rbs():
         LogicGlobals.clusters_to_colonize_rbs[c.id] = set()
 
     if not LogicGlobals.clusters_to_colonize_rbs:
-        unit_med_pos = med_position(LogicGlobals.player.unit_pos)
+        unit_med_pos = med_position([u.pos for u in LogicGlobals.player.units])
         cluster_to_defend = sorted(
             potential_clusters,
             key=lambda c: (sum(
