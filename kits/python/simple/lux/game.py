@@ -4,15 +4,12 @@ from .game_objects import Player, Unit, City, CityTile
 
 
 class Game:
-    def _initialize(self, messages):
-        """
-        initialize state
-        """
-        self.id = int(messages[0])
+    def __init__(self, map_id, size_str):
+        self.id = int(map_id)
         self.turn = -1
         self.turns_until_next_night = 30
         # get some other necessary initial input
-        mapInfo = messages[1].split(" ")
+        mapInfo = size_str.split(" ")
         self.map_width = int(mapInfo[0])
         self.map_height = int(mapInfo[1])
         self.players = [Player(0), Player(1)]
