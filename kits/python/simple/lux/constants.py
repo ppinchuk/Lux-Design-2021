@@ -83,7 +83,6 @@ class LogicGlobals:
     game_state = None
     player = None
     opponent = None
-    start_tile = None
     unlocked_coal = False
     unlocked_uranium = False
     cities = None

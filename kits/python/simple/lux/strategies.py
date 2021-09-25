@@ -86,11 +86,6 @@ def starter_strategy(unit, player):
     #             city.managers.add(unit.id)
     #             return
 
-    # new_city_pos = city_tile_to_build(LogicGlobals.start_tile, player)
-    # if new_city_pos is not None:
-    #     unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
-    #     LogicGlobals.pos_being_built.add(new_city_pos)
-
 
 def time_based_strategy(unit, player):
     """

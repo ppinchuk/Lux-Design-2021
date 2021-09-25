@@ -26,13 +26,6 @@ def update_logic_globals(player):
     if LogicGlobals.game_state.turn == 0:
         for unit in player.units:
             unit.has_colonized = True
-        # LogicGlobals.game_state.map.find_clusters()
-        if LogicGlobals.start_tile is None:
-            LogicGlobals.start_tile = Position(0, 0).find_closest_city_tile(player, LogicGlobals.game_state.map)
-
-    # LogicGlobals.clusters = LogicGlobals.game_state.map.find_clusters()
-    # if LogicGlobals.start_tile is None:
-    #     LogicGlobals.start_tile = Position(0, 0).find_closest_city_tile(player, LogicGlobals.game_state.map)
 
     LogicGlobals.unlocked_coal = player.researched_coal()
     LogicGlobals.unlocked_uranium = player.researched_uranium()
