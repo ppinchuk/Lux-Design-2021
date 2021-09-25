@@ -1,4 +1,5 @@
 import sys
+import statistics
 from itertools import chain
 from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print
 from .game_map import Position
@@ -69,6 +70,17 @@ def set_rbs_rtype():
         LogicGlobals.RBS_rtype = ResourceTypes.WOOD
 
 
+def med_position(positions):
+    x_pos, y_pos = [], []
+    for p in positions:
+        x_pos.append(p.x)
+        y_pos.append(p.y)
+    return Position(
+        statistics.median(x_pos),
+        statistics.median(y_pos)
+    )
+
+
 def find_clusters_to_colonize_rbs():
     potential_clusters = [
         c for c in LogicGlobals.game_state.map.resource_clusters
@@ -83,19 +95,21 @@ def find_clusters_to_colonize_rbs():
     max_num_clusters = len(LogicGlobals.player.unit_ids) // STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['WORKERS_INITIAL']
     print(f"Player has {len(LogicGlobals.player.unit_ids)} units, so num RBS clusters is: {max_num_clusters} (Minimum {STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['WORKERS_INITIAL']} per cluster)")
     if len(clusters_to_colonize) > max_num_clusters:
+        unit_med_pos = med_position(LogicGlobals.player.unit_pos)
         clusters_to_colonize = sorted(
-            clusters_to_colonize, key=lambda c: c.total_amount
+            clusters_to_colonize, key=lambda c: (c.total_amount, c.center_pos.distance_to(unit_med_pos))
         )[:-1-max_num_clusters:-1]
 
     for c in clusters_to_colonize:
         LogicGlobals.clusters_to_colonize_rbs[c.id] = set()
 
     if not LogicGlobals.clusters_to_colonize_rbs:
+        unit_med_pos = med_position(LogicGlobals.player.unit_pos)
         cluster_to_defend = sorted(
             potential_clusters,
-            key=lambda c: sum(
+            key=lambda c: (sum(
                 p in LogicGlobals.opponent.city_pos
                 for p in c.pos_to_defend
-            )
+            ), c.center_pos.distance_to(unit_med_pos))
         )[0]
         LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id] = set()
