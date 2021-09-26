@@ -285,10 +285,14 @@ class GameMap:
             ]
         }
 
-    def get_cell_by_pos(self, pos) -> Cell:
+    def get_cell_by_pos(self, pos):
+        if not self.is_within_bounds(pos):
+            return None
         return self.map[pos.y][pos.x]
 
-    def get_cell(self, x, y) -> Cell:
+    def get_cell(self, x, y):
+        if not self.is_loc_within_bounds(x, y):
+            return None
         return self.map[y][x]
 
     def is_loc_within_bounds(self, x, y):
