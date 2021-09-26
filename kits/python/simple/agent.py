@@ -1,6 +1,6 @@
 from lux.game import Game
 from lux.game_map import Position
-from lux.constants import ValidActions, log, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS
+from lux.constants import ValidActions, log, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
 from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
 from collections import deque, Counter, UserDict
 from itertools import chain
@@ -12,10 +12,19 @@ import lux.game_objects as go
 
 
 def set_unit_task(unit, player):
-    if player.researched_coal():
-        research_based_strategy(unit, player)
+    max_turn = STRATEGY_HYPERPARAMETERS[f"END_GAME_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+    if LogicGlobals.game_state.turn >= max_turn:
+        if player.research_points < GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]:
+            time_based_strategy(unit, player)
+        else:
+            research_based_strategy(unit, player)
     else:
         starter_strategy(unit, player)
+
+    # if player.researched_coal():
+    #     research_based_strategy(unit, player)
+    # else:
+    #     starter_strategy(unit, player)
     # if LogicGlobals.game_state.turn < 200:
     #     starter_strategy(unit, player)
     # else:
@@ -268,7 +277,8 @@ def agent(observation, configuration):
                             existing_carts = LogicGlobals.RBS_cluster_carts.get(city_tile.cluster_to_defend_id, set())
                             if len(existing_carts) < STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['MAX_CARTS_PER_CLUSTER']:
                                 actions.append(city_tile.build_cart())
-                                LogicGlobals.RBS_cluster_carts[city_tile.cluster_to_defend_id] = existing_carts.add(f"Pending_cart_{city_tile.pos}")
+                                existing_carts.add(f"Pending_cart_{city_tile.pos}")
+                                LogicGlobals.RBS_cluster_carts[city_tile.cluster_to_defend_id] = existing_carts
                                 continue
                         if city_tile.pos in LogicGlobals.RBS_citytiles:
                             actions.append(city_tile.build_worker())
