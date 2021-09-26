@@ -211,13 +211,15 @@ class ResourceCluster:
             #     self.pos_to_defend, key=opponent_med_pos.distance_to
             # )
 
-        closest_opponent_pos = min(
-            opponent.city_pos | opponent.unit_pos,
-            key=self.center_pos.distance_to
-        )
-        self.pos_to_defend = sorted(
-            self.pos_to_defend, key=closest_opponent_pos.distance_to
-        )
+        opponent_positions = opponent.city_pos | opponent.unit_pos
+        if opponent_positions:
+            closest_opponent_pos = min(
+                opponent_positions,
+                key=self.center_pos.distance_to
+            )
+            self.pos_to_defend = sorted(
+                self.pos_to_defend, key=closest_opponent_pos.distance_to
+            )
 
         self.city_ids = set()
         self.pos_defended = []
