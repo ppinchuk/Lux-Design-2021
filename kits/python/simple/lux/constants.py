@@ -114,6 +114,8 @@ ALL_DIRECTIONS_AND_CENTER = [
     Directions.CENTER
 ]
 
+INFINITE_DISTANCE = 999
+
 # def partial_print(*args):
 #     return print(f"Turn {LogicGlobals.game_state.turn}", *args, file=sys.stderr)
 

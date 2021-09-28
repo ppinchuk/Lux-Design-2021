@@ -6,7 +6,7 @@ from random import shuffle, seed
 if getpass.getuser() == 'Paul':
     seed(69420)
 
-from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes
+from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes, INFINITE_DISTANCE
 
 
 MAX_DISTANCE_FROM_EDGE = STRATEGY_HYPERPARAMETERS['MAX_DISTANCE_FROM_EDGE']
@@ -409,6 +409,8 @@ class Position:
         return abs(pos.x - self.x) + abs(pos.y - self.y)
 
     def pathing_distance_to(self, pos, game_map, debug=False):
+        if pos is None:
+            return INFINITE_DISTANCE
         if pos == self:
             return 0
         elif self - pos > 10:
