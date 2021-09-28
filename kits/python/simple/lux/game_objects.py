@@ -480,6 +480,8 @@ class Unit:
         return self.cooldown < 1
 
     def can_make_it_before_nightfall(self, target_pos, game_state, mult=1.0, tolerance=0):
+        if target_pos is None:
+            return False
         distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
         return distance_to_target * GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"][self.type_str] * mult + tolerance < game_state.turns_until_next_night
 
