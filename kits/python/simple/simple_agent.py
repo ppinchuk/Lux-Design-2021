@@ -1,6 +1,6 @@
-from lux.game import Game
-from lux.game_map import Cell
-from lux.constants import ResourceTypes, LogicGlobals
+from simple_lux.game import Game
+from simple_lux.game_map import Cell, RESOURCE_TYPES, Position
+from simple_lux.constants import Constants
 import math
 
 
@@ -24,8 +24,8 @@ def find_closest_resources(pos, player, resource_tiles):
     closest_resource_tile = None
     for resource_tile in resource_tiles:
         # we skip over resources that we can't mine due to not having researched them
-        if resource_tile.resource.type == ResourceTypes.COAL and not player.researched_coal(): continue
-        if resource_tile.resource.type == ResourceTypes.URANIUM and not player.researched_uranium(): continue
+        if resource_tile.resource.type == Constants.RESOURCE_TYPES.COAL and not player.researched_coal(): continue
+        if resource_tile.resource.type == Constants.RESOURCE_TYPES.URANIUM and not player.researched_uranium(): continue
         dist = resource_tile.pos.distance_to(pos)
         if dist < closest_dist:
             closest_dist = dist
@@ -56,24 +56,27 @@ def agent(observation, configuration):
 
     ### Do not edit ###
     if observation["step"] == 0:
-        LogicGlobals.game_state = Game(*observation["updates"][:2])
-        LogicGlobals.game_state.update(observation["updates"][2:], observation.player)
-        LogicGlobals.game_state.id = observation.player
+        game_state = Game()
+        game_state._initialize(observation["updates"])
+        game_state._update(observation["updates"][2:])
+        game_state.id = observation.player
     else:
-        LogicGlobals.game_state.update(observation["updates"], observation.player)
+        game_state._update(observation["updates"])
 
     actions = []
 
     ### AI Code goes down here! ###
-    player = LogicGlobals.game_state.players[observation.player]
+    player = game_state.players[observation.player]
+    opponent = game_state.players[(observation.player + 1) % 2]
+    width, height = game_state.map.width, game_state.map.height
 
-    resource_tiles = find_resources(LogicGlobals.game_state)
+    resource_tiles = find_resources(game_state)
 
     for unit in player.units:
         # if the unit is a worker (can mine resources) and can perform an action this turn
         if unit.is_worker() and unit.can_act():
             # we want to mine only if there is space left in the worker's cargo
-            if unit.cargo_space_left() > 0:
+            if unit.get_cargo_space_left() > 0:
                 # find the closest resource if it exists to this unit
                 closest_resource_tile = find_closest_resources(unit.pos, player, resource_tiles)
                 if closest_resource_tile is not None:
