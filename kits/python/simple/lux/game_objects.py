@@ -360,6 +360,8 @@ class Unit:
                 return self.propose_action(player, game_state)
 
         elif action == ValidActions.MOVE:
+            if game_state.map.get_cell_by_pos(self.pos).citytile is not None and game_state.turns_until_next_night <= 1: # TODO:  This is basic and can probably be improved... We don't even check for a resource in the movement direction
+                return None, None
             if not self.can_make_it_before_nightfall(target, game_state, mult=1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
                 if closest_resource_pos is not None and closest_resource_pos != target:

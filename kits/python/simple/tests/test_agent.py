@@ -79,7 +79,70 @@ class TestUnitMovement:
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
-        assert actions == ['m u_1 s']
+        assert len(actions) == ['m u_1 s']
+
+    def test_moving_from_city_tile_at_night(self):
+        c.LogicGlobals.game_state = g.Game(0, "3 3")
+
+        for _ in range(c.GAME_CONSTANTS['PARAMETERS']['DAY_LENGTH'] - 1):
+            c.LogicGlobals.game_state.update(
+                [
+                    'u 0 0 u_1 0 0 0 0 0 0',
+                    'c 0 c_1 0 23',
+                    'ct 0 c_1 0 0 0',
+                    'ccd 0 0 6',
+                ], 0
+            )
+
+        #    0  1  2
+        # 0 u1 __ __
+        # 1 __ __ __
+        # 2 __ __ __
+
+        for _ in range(c.GAME_CONSTANTS['PARAMETERS']['NIGHT_LENGTH'] + 1):
+            c.LogicGlobals.game_state.update(
+                [
+                    'u 0 0 u_1 0 0 0 0 0 0',
+                    'c 0 c_1 0 23',
+                    'ct 0 c_1 0 0 0',
+                    'ccd 0 0 6',
+                ], 0
+            )
+
+            unit_actions_this_turn = {
+                'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+            }
+
+            for unit in c.LogicGlobals.player.units:
+                unit.set_task(*unit_actions_this_turn[unit.id])
+
+            actions, debug = agent.unit_action_resolution(
+                c.LogicGlobals.player, c.LogicGlobals.opponent
+            )
+
+            assert not actions
+
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 0 0 0 0 0 0',
+                'c 0 c_1 0 23',
+                'ct 0 c_1 0 0 0',
+                'ccd 0 0 6',
+            ], 0
+        )
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 1
 
 
 class TestUnitCollisions:
