@@ -8,12 +8,20 @@ from .strategy_utils import reset_unit_tasks, city_tile_to_build, compute_tbs_co
 
 
 def starter_strategy(unit, player):
+
     if player.current_strategy != StrategyTypes.STARTER:
         player.current_strategy = StrategyTypes.STARTER
         reset_unit_tasks(player)
         LogicGlobals.pos_being_built = set()
 
+    if LogicGlobals.unlocked_uranium and LogicGlobals.main_city_close_to_coal is None:
+        pass
+        # find_closest_city_to_coal
+
     if not unit.can_act():
+        return
+
+    if unit.is_cart():
         return
 
     for __, city in player.cities.items():
@@ -25,6 +33,12 @@ def starter_strategy(unit, player):
 
         if LogicGlobals.unlocked_coal and ResourceTypes.COAL in city.neighbor_resource_types:
             if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 50) + 1:
+                unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+                city.managers.add(unit.id)
+                return
+
+        if len(city.citytiles) > 2 and ResourceTypes.WOOD in city.neighbor_resource_types:
+            if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 80) + 1:
                 unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
                 city.managers.add(unit.id)
                 return
@@ -46,10 +60,31 @@ def starter_strategy(unit, player):
                 closest_cluster = LogicGlobals.game_state.map.position_to_cluster(closest_city_tile_pos)
             else:
                 closest_cluster = None
-            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize < closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
-                unit.cluster_to_defend = max(
+            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
+                # if LogicGlobals.game_state.map.height >= 24:
+                #     clusters_to_colonize_this_turn = [c for c in LogicGlobals.clusters_to_colonize if unit.pos.distance_to(c.center_pos) <= (LogicGlobals.game_state.turn * LogicGlobals.radius_for_clusters / STRATEGY_HYPERPARAMETERS[f'QUADRATIC_CUTOFF_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}'])]
+                #     if clusters_to_colonize_this_turn:
+                #         unit.cluster_to_defend = max(
+                #             clusters_to_colonize_this_turn,
+                #             key=lambda c: c.current_score
+                #         )
+                #         closest_cluster.n_workers_sent_to_colonize += 1
+                #     else:
+                #         unit.cluster_to_defend = closest_cluster
+                # else:
+                #     unit.cluster_to_defend = max(
+                #         LogicGlobals.clusters_to_colonize,
+                #         key=lambda c: c.current_score
+                #     )
+
+
+                # unit.cluster_to_defend = max(
+                #     LogicGlobals.clusters_to_colonize,
+                #     key=lambda c: c.current_score
+                # )
+                unit.cluster_to_defend = min(
                     LogicGlobals.clusters_to_colonize,
-                    key=lambda c: c.current_score
+                    key=lambda c: unit.pos.distance_to(c.center_pos)
                 )
                 closest_cluster.n_workers_sent_to_colonize += 1
             else:
@@ -114,26 +149,36 @@ def time_based_strategy(unit, player):
 
 
     """
-    if player.current_strategy != StrategyTypes.TIME_BASED:
-        player.current_strategy = StrategyTypes.TIME_BASED
-        reset_unit_tasks(player)
-        LogicGlobals.pos_being_built = set()
+    # if player.current_strategy != StrategyTypes.TIME_BASED:
+    #     player.current_strategy = StrategyTypes.TIME_BASED
+        # reset_unit_tasks(player)
+        # LogicGlobals.pos_being_built = set()
 
-    if LogicGlobals.TBS_COM is None:
-        LogicGlobals.TBS_COM = compute_tbs_com(LogicGlobals.game_state.map)
-        print(f"New TBS COM is: {LogicGlobals.TBS_COM}")
+    # if LogicGlobals.TBS_COM is None:
+    #     LogicGlobals.TBS_COM = compute_tbs_com(LogicGlobals.game_state.map)
+    #     print(f"New TBS COM is: {LogicGlobals.TBS_COM}")
 
     # TODO: WHAT IF THERE IS NO MORE WOOD??
-    if len(LogicGlobals.pos_being_built | LogicGlobals.TBS_citytiles) < STRATEGY_HYPERPARAMETERS['TBS']['LAST_DITCH_NUMBER_OF_WORKERS_RATIO'] * len(player.units):
+    # if len(LogicGlobals.pos_being_built | LogicGlobals.TBS_citytiles) < STRATEGY_HYPERPARAMETERS['TBS']['LAST_DITCH_NUMBER_OF_WORKERS_RATIO'] * len(player.units):
+    TIME_BASED_STRATEGY_UNITS = {
+        u for u in player.units if u.current_strategy == StrategyTypes.TIME_BASED
+    }
+    TIME_BASED_STRATEGY_UNITS_BUILDING = {
+        u for u in TIME_BASED_STRATEGY_UNITS if u.is_building()
+    }
+    print("NUM_UNITS_BUILDING:", len(TIME_BASED_STRATEGY_UNITS_BUILDING), "NUM_UNITS_IN_TBS_STRAT:", len(TIME_BASED_STRATEGY_UNITS))
+    if len(TIME_BASED_STRATEGY_UNITS_BUILDING) < STRATEGY_HYPERPARAMETERS['TBS']['LAST_DITCH_NUMBER_OF_WORKERS_RATIO'] * len(TIME_BASED_STRATEGY_UNITS):
         new_city_pos = city_tile_to_build_tbs(
             LogicGlobals.TBS_COM,
             LogicGlobals.game_state.map,
             LogicGlobals.pos_being_built
         )
+        print(unit.id, new_city_pos)
         if new_city_pos is not None:
             unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
             LogicGlobals.pos_being_built.add(new_city_pos)
             LogicGlobals.TBS_citytiles.add(new_city_pos)
+            print(f"unit {unit.id} task:", unit.current_task)
             return
 
     center_city_tile_pos = {
@@ -230,8 +275,8 @@ def research_based_strategy(unit, player):
     """
     if player.current_strategy != StrategyTypes.RESEARCH_BASED:
         player.current_strategy = StrategyTypes.RESEARCH_BASED
-        reset_unit_tasks(player)
-        LogicGlobals.pos_being_built = set()
+        # reset_unit_tasks(player)
+        # LogicGlobals.pos_being_built = set()
 
     if LogicGlobals.RBS_rtype is None:
         set_rbs_rtype()
@@ -244,7 +289,9 @@ def research_based_strategy(unit, player):
         for c in LogicGlobals.game_state.map.resource_clusters
     ):
         find_clusters_to_colonize_rbs()
-        print("\n".join(['RBS clusters to colonize:'] + [f"\t{ LogicGlobals.game_state.map.get_cluster_by_id(c).type} cluster at {LogicGlobals.game_state.map.get_cluster_by_id(c).center_pos}" for c in LogicGlobals.clusters_to_colonize_rbs]))
+        print("\n".join(
+            ['RBS clusters to colonize:']
+            + [f"\t{LogicGlobals.game_state.map.get_cluster_by_id(c).type} cluster at {LogicGlobals.game_state.map.get_cluster_by_id(c).center_pos}" for c in LogicGlobals.clusters_to_colonize_rbs]))
 
     if unit.cluster_to_defend_id is None:
         possible_clusters_to_defend = sorted(
@@ -256,10 +303,12 @@ def research_based_strategy(unit, player):
         )
         if possible_clusters_to_defend:  # TODO: what if "possible_clusters_to_defend" is empty?
             unit.cluster_to_defend_id = possible_clusters_to_defend[0].id
-            LogicGlobals.clusters_to_colonize_rbs[possible_clusters_to_defend[0].id].add(unit.id)
+            LogicGlobals.clusters_to_colonize_rbs[unit.cluster_to_defend_id].add(unit.id)
 
-    if unit.cluster_to_defend_id is None:
-        return
+    if unit.cluster_to_defend_id is None and LogicGlobals.clusters_to_colonize_rbs:
+        unit.cluster_to_defend_id = list(LogicGlobals.clusters_to_colonize_rbs)[0]  # TODO: This is honestly not that great
+        LogicGlobals.clusters_to_colonize_rbs[unit.cluster_to_defend_id].add(unit.id)
+        # return
 
     cluster_to_defend = LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id)
     cities_to_manage = sorted(
@@ -274,9 +323,9 @@ def research_based_strategy(unit, player):
         for c in cities_to_manage:
             print(f"City {c.cityid}: Len city managers:", len(c.managers), "Len of all workers:", len(LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id]))
         cities_to_select_from = [
-            c for c in cities_to_manage if len(c.managers) < 0.25 * len(
-                LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id]
-            )
+            # c for c in cities_to_manage if len(c.managers) < 0.25 * len(
+            #     LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id]
+            c for c in cities_to_manage if len(c.managers) < len(c.citytiles)
         ]
         print("Cities to select from:", cities_to_select_from)
         if cities_to_select_from:
@@ -362,3 +411,10 @@ def research_based_strategy(unit, player):
     # #         for p in unit.pos.adjacent_positions()
     # # ):
     # #     unit.set_task(ValidActions.MOVE, target=LogicGlobals.TBS_COM.translate(Constants.DIRECTIONS.WEST, 2))
+
+
+STRATEGY_FUNCTIONS = {
+    StrategyTypes.STARTER: starter_strategy,
+    StrategyTypes.TIME_BASED: time_based_strategy,
+    StrategyTypes.RESEARCH_BASED: research_based_strategy
+}

@@ -1,6 +1,7 @@
 from typing import List
 import math
 import sys
+from functools import partial
 import getpass
 from random import shuffle, seed
 if getpass.getuser() == 'Paul':
@@ -194,6 +195,19 @@ class ResourceCluster:
                         if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
                     }
 
+                for p in [
+                    Position(self.min_loc[0] - 1, self.min_loc[1] - 1),  # TODO: fix this for corners that are within MAX_DISTANCE_FROM_EDGE
+                    Position(self.min_loc[0] - 1, self.max_loc[1] + 1),
+                    Position(self.max_loc[0] + 1, self.min_loc[1] - 1),
+                    Position(self.max_loc[0] + 1, self.max_loc[1] + 1),
+                ]:
+                    if game_map.is_within_bounds(p) and all([
+                        p.distance_to(Position(0, 0)) > MAX_DISTANCE_FROM_EDGE,
+                        p.distance_to(Position(0, game_map.height-1)) > MAX_DISTANCE_FROM_EDGE,
+                        p.distance_to(Position(game_map.width-1, 0)) > MAX_DISTANCE_FROM_EDGE,
+                        p.distance_to(Position(game_map.width-1, game_map.height-1)) > MAX_DISTANCE_FROM_EDGE,
+                    ]):
+                        self.pos_to_defend.add(p)
             log(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}")
 
             # opponent_x_vals, opponent_y_vals = [], []
@@ -217,9 +231,11 @@ class ResourceCluster:
                 opponent_positions,
                 key=self.center_pos.distance_to
             )
-            self.pos_to_defend = sorted(
-                self.pos_to_defend, key=closest_opponent_pos.distance_to
-            )
+        else:
+            closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
+        self.pos_to_defend = sorted(
+            self.pos_to_defend, key=closest_opponent_pos.distance_to
+        )
 
         self.city_ids = set()
         self.pos_defended = []
@@ -408,8 +424,48 @@ class Position:
     def __sub__(self, pos) -> int:
         return abs(pos.x - self.x) + abs(pos.y - self.y)
 
-    def pathing_distance_to(self, pos, game_map, debug=False):
-        if pos is None:
+    def turn_distance_to(self, pos, game_map, cooldown, avoid_own_cities=False, include_target_road=False, debug=False):
+        if pos is None or not game_map.is_within_bounds(pos):
+            return INFINITE_DISTANCE
+        if pos == self:
+            return 0
+        elif self - pos > 10:
+            return (self - pos) * cooldown
+        else:
+            i = 0
+            if include_target_road:
+                step = max(1, cooldown - game_map.get_cell_by_pos(pos).road)
+            else:
+                step = 1
+            main_list = [(pos, step)]
+            while self not in set(x[0] for x in main_list):
+                # if debug:
+                #     print(main_list)
+                try:
+                    next_pos, step = main_list[i]
+                except IndexError:
+                    return INFINITE_DISTANCE
+                if step >= 10 * cooldown:
+                    break
+                for p in next_pos.adjacent_positions(include_center=False):
+                    if p == self:
+                        return step
+
+                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos
+                    if avoid_own_cities:
+                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos
+
+                    if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
+                        main_list.append((p, step + max(1, cooldown - game_map.get_cell_by_pos(p).road)))
+                main_list = sorted(main_list, key=lambda x: x[1])
+                i += 1
+            for x in main_list:
+                if x[0] == self:
+                    return x[1]
+            return step
+
+    def pathing_distance_to(self, pos, game_map, avoid_own_cities=False, debug=False):
+        if pos is None or not game_map.is_within_bounds(pos):
             return INFINITE_DISTANCE
         if pos == self:
             return 0
@@ -431,7 +487,12 @@ class Position:
                 for p in next_pos.adjacent_positions(include_center=False):
                     if p == self:
                         return step + 1
-                    if game_map.is_within_bounds(p) and game_map.get_cell_by_pos(p).citytile is None and p not in set(x[0] for x in main_list):
+
+                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos
+                    if avoid_own_cities:
+                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos
+
+                    if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + 1))
                 i += 1
             for x in main_list:
@@ -581,22 +642,53 @@ class Position:
 
         return self._find_closest_resource(resources_to_consider, game_map)
 
-    def sort_directions_by_pathing_distance(self, target_pos, game_map, pos_to_check=None, tolerance=None):
+    def sort_directions_by_pathing_distance(self, target_pos, game_map, pos_to_check=None, tolerance=None, avoid_own_cities=False):
 
         if self.distance_to(target_pos) == 0:
             return Directions.CENTER
 
+        return self._sort_directions(
+            dist_func=partial(
+                target_pos.pathing_distance_to,
+                avoid_own_cities=avoid_own_cities,
+                game_map=game_map
+            ),
+            pos_to_check=pos_to_check,
+            tolerance=tolerance
+        )
+
+    def sort_directions_by_turn_distance(self, target_pos, game_map, cooldown, pos_to_check=None, tolerance=None, avoid_own_cities=False):
+
+        if self.distance_to(target_pos) == 0:
+            return Directions.CENTER
+
+        return self._sort_directions(
+            dist_func=partial(
+                target_pos.turn_distance_to,
+                game_map=game_map,
+                cooldown=cooldown,
+                avoid_own_cities=avoid_own_cities,
+                include_target_road=True
+            ),
+            pos_to_check=pos_to_check,
+            tolerance=tolerance
+        )
+
+    def _default_positions_to_check(self):
+        return {
+            direction: self.translate(direction, 1)
+            for direction in ALL_DIRECTIONS
+        }
+
+    def _sort_directions(self, dist_func, pos_to_check=None, tolerance=None):
         if pos_to_check is None:
-            pos_to_check = {
-                direction: self.translate(direction, 1)
-                for direction in ALL_DIRECTIONS
-            }
+            pos_to_check = self._default_positions_to_check()
 
         dir_pos = list(pos_to_check.items())
-        dists = {d: target_pos.pathing_distance_to(p, game_map=game_map) for d, p in dir_pos}
+        dists = {d: dist_func(p) for d, p in dir_pos}
 
         if tolerance is not None:
-            dists = {k: v for k, v in dists.items() if v < tolerance + min(dists.values())}
+            dists = {k: v for k, v in dists.items() if v <= tolerance + min(dists.values())}
 
         return sorted(dists, key=dists.get)
 
