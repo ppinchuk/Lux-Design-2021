@@ -1,7 +1,7 @@
 import sys
 import statistics
 from itertools import chain
-from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print
+from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print, GAME_CONSTANTS
 from .game_map import Position
 
 
@@ -97,7 +97,8 @@ def find_clusters_to_colonize_rbs():
     if len(clusters_to_colonize) > max_num_clusters:
         unit_med_pos = med_position([u.pos for u in LogicGlobals.player.units])
         clusters_to_colonize = sorted(
-            clusters_to_colonize, key=lambda c: (c.total_amount, -c.center_pos.distance_to(unit_med_pos))
+            clusters_to_colonize,
+            key=lambda c: (c.total_amount * (GAME_CONSTANTS["PARAMETERS"]["MAX_DAYS"] - LogicGlobals.game_state.turn) / (c.center_pos.distance_to(unit_med_pos) * 2.5), -c.center_pos.distance_to(unit_med_pos))
         )[:-1-max_num_clusters:-1]
 
     for c in clusters_to_colonize:

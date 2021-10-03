@@ -95,6 +95,8 @@ class LogicGlobals:
     clusters_to_colonize_rbs = {}
     RBS_citytiles = set()
     RBS_cluster_carts = {}
+    radius_for_clusters = 0
+    main_city_close_to_coal = None
 
 
 UNIT_TYPE_AS_STR = {
