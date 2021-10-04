@@ -4,9 +4,27 @@ import lux.game_map as gm
 import lux.constants as c
 
 
+"""
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'rp 0 0' <- research points (player id, num)
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'rp 1 0'
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'r coal 0 3 419' <- resource (type, x, y, amount)
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'r wood 0 9 314'
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'r uranium 6 10 331'
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'u 0 0 u_1 13 7 0 0 0 0'    <- unit (type, team, id, x, y, cooldown, wood, coal, uranium)
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'u 0 1 u_2 13 16 0 0 0 0'
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'c 0 c_1 0 23'  <- city (team, id, fuel, lightupkeep)
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'c 1 c_2 0 23'
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ct 0 c_1 13 7 0'   <- citytile (team, id, x, y, cooldown)
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ct 1 c_2 13 16 0'
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ccd 13 7 6'   <- road (x, y, level)
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ccd 13 16 6'
+[WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'D_DONE'
+"""
+
+
 class TestResourceCluster:
-    def test_positions_to_defend(self):
-        c.LogicGlobals.game_state = g.Game(0, "7 7")
+    @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])
+    def test_positions_to_defend_by_edge(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'r coal 1 1 419',
@@ -22,11 +40,6 @@ class TestResourceCluster:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-
-        c.LogicGlobals.game_state.map.find_clusters()
-        c.LogicGlobals.game_state.map.update_clusters(
-            c.LogicGlobals.opponent
-        )
         for cluster in c.LogicGlobals.game_state.map.resource_clusters:
             assert cluster.pos_to_defend[0] == gm.Position(2, 2)
             assert gm.Position(2, 1) in cluster.pos_to_defend[1:3]
@@ -34,8 +47,8 @@ class TestResourceCluster:
             assert gm.Position(0, 2) in cluster.pos_to_defend[3:]
             assert gm.Position(2, 0) in cluster.pos_to_defend[3:]
 
-
-        c.LogicGlobals.game_state = g.Game(0, "7 7")
+    @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])
+    def test_positions_to_defend_by_edge_2(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'r coal 2 2 419',
@@ -51,13 +64,7 @@ class TestResourceCluster:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        c.LogicGlobals.game_state.map.find_clusters()
-        c.LogicGlobals.game_state.map.update_clusters(
-            c.LogicGlobals.opponent
-        )
-
         for cluster in c.LogicGlobals.game_state.map.resource_clusters:
-            print(cluster.pos_to_defend)
             assert cluster.pos_to_defend[0] == gm.Position(3, 3)
             assert gm.Position(2, 3) in cluster.pos_to_defend[1:3]
             assert gm.Position(3, 2) in cluster.pos_to_defend[1:3]
@@ -68,8 +75,8 @@ class TestResourceCluster:
 
 
 class TestGameMap:
-    def test_bounds(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_bounds(self, initialize_game):
         c.LogicGlobals.game_state.update([], 0)
 
         assert c.LogicGlobals.game_state.map.is_within_bounds(
@@ -89,8 +96,8 @@ class TestGameMap:
         assert not c.LogicGlobals.game_state.map.is_loc_within_bounds(1, 3)
         assert not c.LogicGlobals.game_state.map.is_loc_within_bounds(-1, 0)
 
-    def test_get_cell(self):
-        c.LogicGlobals.game_state = g.Game(0, "32 32")
+    @pytest.mark.parametrize("initialize_game", [32], indirect=['initialize_game'])
+    def test_get_cell(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'r coal 0 3 419',
@@ -160,8 +167,8 @@ class TestPosition:
         assert pos.translate(c.Directions.CENTER, 10) == gm.Position(10, 10)
         assert pos.translate(c.Directions.NORTH, -1) == gm.Position(10, 11)
 
-    def test_find_closest_city_tile(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_find_closest_city_tile(self, initialize_game):
         c.LogicGlobals.game_state.update([
             'c 0 c_1 0 23',
             'ct 0 c_1 1 1 0',
@@ -179,8 +186,8 @@ class TestPosition:
         )
         assert closest_city_pos is None
 
-    def test_pathing_distance_to(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_pathing_distance_to(self, initialize_game):
         c.LogicGlobals.game_state.update([], 0)
         pos = gm.Position(0, 0)
 
@@ -286,8 +293,8 @@ class TestPosition:
             avoid_own_cities=False
         ) == 4
 
-    def test_turn_distance_to(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_turn_distance_to(self, initialize_game):
         c.LogicGlobals.game_state.update([], 0)
         pos = gm.Position(0, 0)
 
