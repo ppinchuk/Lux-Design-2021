@@ -311,7 +311,7 @@ class Unit:
                             f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
                         return None, None
                 else:
-                    print(f"Manager {self.id} wants to go find resources there are none left!")
+                    print(f"Manager {self.id} wants to go find resources but there are none left!")
                     return None, None
             else:
                 target_pos = min(
