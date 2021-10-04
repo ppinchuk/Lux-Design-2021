@@ -25,8 +25,8 @@ import lux.constants as c
 
 
 class TestManageAction:
-    def test_manage_with_no_more_resources(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_manage_with_no_more_resources(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 1 0 0 0 0 0',
@@ -56,8 +56,8 @@ class TestManageAction:
 
 
 class TestUnitMovement:
-    def test_single_unit_movement(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_single_unit_movement(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 1 0 0 0 0 0',
@@ -82,8 +82,8 @@ class TestUnitMovement:
 
         assert actions == ['m u_1 s']
 
-    def test_movement_with_road(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_movement_with_road(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 0 0 0 0 0 0',
@@ -110,10 +110,10 @@ class TestUnitMovement:
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
-        assert len(actions) == ['m u_1 s']
+        assert actions == ['m u_1 s']
 
-    def test_moving_from_city_tile_at_night(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_moving_from_city_tile_at_night(self, initialize_game):
 
         for _ in range(c.GAME_CONSTANTS['PARAMETERS']['DAY_LENGTH'] - 1):
             c.LogicGlobals.game_state.update(
@@ -177,8 +177,8 @@ class TestUnitMovement:
 
 
 class TestUnitCollisions:
-    def test_collision_when_equidistant_move_loc(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_collision_when_equidistant_move_loc(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 0 0 0 0 0 0',
@@ -207,8 +207,8 @@ class TestUnitCollisions:
         assert 'm u_2 w' in actions
         assert 'm u_1 e' in actions
 
-    def test_collision_moving_through(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_collision_moving_through(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 1 0 0 0 0 0',
@@ -236,8 +236,8 @@ class TestUnitCollisions:
         assert len(actions) == 1
         assert ('m u_2 e' in actions) or ('m u_1 s' in actions)
 
-    def test_collision_mix_of_through_and_target(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_collision_mix_of_through_and_target(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 1 0 0 0 0 0',
@@ -270,8 +270,8 @@ class TestUnitCollisions:
             if unit.id == 'u_2':
                 assert unit.turns_spent_waiting_to_move == 0
 
-    def test_collision_mix_of_through_and_target_with_city(self):
-        c.LogicGlobals.game_state = g.Game(0, "3 3")
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_collision_mix_of_through_and_target_with_city(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 1 0 0 0 0 0',
@@ -302,8 +302,8 @@ class TestUnitCollisions:
         assert 'm u_2 e' in actions
         assert 'm u_1 s' in actions
 
-    def test_collision_mix_of_through_and_target_multi(self):
-        c.LogicGlobals.game_state = g.Game(0, "5 5")
+    @pytest.mark.parametrize("initialize_game", [5], indirect=['initialize_game'])
+    def test_collision_mix_of_through_and_target_multi(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 2 0 0 0 0 0',

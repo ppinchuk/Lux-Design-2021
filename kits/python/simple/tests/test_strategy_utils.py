@@ -25,8 +25,8 @@ import lux.constants as c
 """
 
 
-def test_med_position():
-    c.LogicGlobals.game_state = g.Game(0, "32 32")
+@pytest.mark.parametrize("initialize_game", [32], indirect=['initialize_game'])
+def test_med_position(initialize_game):
     c.LogicGlobals.game_state.update(
         [
             'u 0 0 u_1 3 2 0 0 0 0',
