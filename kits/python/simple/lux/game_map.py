@@ -40,7 +40,7 @@ class ResourceCluster:
         self.id = self._hash = hash(tuple(self._resource_positions.keys()))
 
     def __repr__(self) -> str:
-        return f"ResourceCluster({self.type}, {self.id})"
+        return f"ResourceCluster({self.type}, {self.center_pos}, {self.id})"
 
     def __eq__(self, other) -> bool:
         return self.resource_positions == other.resource_positions
