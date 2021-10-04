@@ -33,6 +33,7 @@ class ResourceCluster:
         self.n_workers_spawned = 0
         self.n_workers_sent_to_colonize = 0
         self.city_ids = set()
+        self.sort_position = None
 
         for pos in positions:
             self._resource_positions[pos] = None
@@ -224,15 +225,18 @@ class ResourceCluster:
             # self.pos_to_defend = sorted(
             #     self.pos_to_defend, key=opponent_med_pos.distance_to
             # )
-
-        opponent_positions = opponent.city_pos | opponent.unit_pos
-        if opponent_positions:
-            closest_opponent_pos = min(
-                opponent_positions,
-                key=self.center_pos.distance_to
-            )
+        if self.sort_position is None:
+            opponent_positions = opponent.city_pos | opponent.unit_pos
+            if opponent_positions:
+                closest_opponent_pos = min(
+                    opponent_positions,
+                    key=self.center_pos.distance_to
+                )
+            else:
+                closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
         else:
-            closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
+            closest_opponent_pos = self.sort_position
+
         self.pos_to_defend = sorted(
             self.pos_to_defend, key=closest_opponent_pos.distance_to
         )
@@ -295,7 +299,7 @@ class GameMap:
 
         self.__dict__.update(MAP_CACHE.get('map', {}))
 
-    def __del__(self):
+    def save_state(self):
         MAP_CACHE['map'] = {
             key: self.__dict__[key]
             for key in [
@@ -369,7 +373,7 @@ class GameMap:
                 resource_pos_found = resource_pos_found | new_cluster_pos
                 new_cluster = ResourceCluster(cell.resource.type, new_cluster_pos)
                 self.resource_clusters.add(new_cluster)
-
+        self.save_state()
         return self.resource_clusters
 
     def update_clusters(self, opponent):
@@ -381,6 +385,7 @@ class GameMap:
             if cluster.total_amount <= 0 and LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                 clusters_to_discard.add(cluster)
         self.resource_clusters = self.resource_clusters - clusters_to_discard
+        self.save_state()
 
     def get_cluster_by_id(self, cluster_id):
         for c in self.resource_clusters:

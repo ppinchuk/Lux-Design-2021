@@ -88,3 +88,8 @@ class Game:
         if self.map.resource_clusters is None:
             self.map.find_clusters()
         self.map.update_clusters(LogicGlobals.opponent)
+        if self.turn == 0:
+            for cluster in self.map.resource_clusters:
+                if len(cluster.pos_defended) >= 2:
+                    cluster.sort_position = list(LogicGlobals.player.city_pos)[0]
+                    self.map.update_clusters(LogicGlobals.opponent)

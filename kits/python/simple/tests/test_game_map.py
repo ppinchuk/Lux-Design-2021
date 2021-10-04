@@ -23,6 +23,91 @@ import lux.constants as c
 
 
 class TestResourceCluster:
+
+    @pytest.mark.parametrize("initialize_game", [11], indirect=['initialize_game'])
+    def test_positions_to_defend_if_different_starting_clusters(self, initialize_game):
+        c.LogicGlobals.game_state.update(
+            [
+                'r coal 4 5 419',
+                'r coal 6 5 419',
+                'u 0 0 u_1 3 5 0 0 0 0',
+                'u 0 1 u_2 7 5 0 0 0 0',
+                'c 0 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 0 c_1 3 5 0',
+                'ct 1 c_2 7 5 0',
+            ], 0
+        )
+
+        #     0  1  2  3  4  5  6  7  8  9 10
+        #  0 __ __ __ __ __ __ __ __ __ __ __
+        #  1 __ __ __ __ __ __ __ __ __ __ __
+        #  2 __ __ __ __ __ __ __ __ __ __ __
+        #  3 __ __ __ __ __ __ __ __ __ __ __
+        #  4 __ __ __ __ __ __ __ __ __ __ __
+        #  5 __ __ __ u1 co __ co u2 __ __ __
+        #  6 __ __ __ __ __ __ __ __ __ __ __
+        #  7 __ __ __ __ __ __ __ __ __ __ __
+        #  8 __ __ __ __ __ __ __ __ __ __ __
+        #  9 __ __ __ __ __ __ __ __ __ __ __
+        # 10 __ __ __ __ __ __ __ __ __ __ __
+
+        assert len(c.LogicGlobals.game_state.map.resource_clusters) == 2
+
+        for cluster in c.LogicGlobals.game_state.map.resource_clusters:
+            if gm.Position(4, 5) in cluster.resource_positions:
+                assert cluster.pos_to_defend[0] == gm.Position(5, 5), cluster.pos_to_defend[0]
+                assert gm.Position(5, 6) in cluster.pos_to_defend[1:3], cluster.pos_to_defend[1:3]
+                assert gm.Position(5, 4) in cluster.pos_to_defend[1:3], cluster.pos_to_defend[1:3]
+                assert gm.Position(4, 6) in cluster.pos_to_defend[3:5], cluster.pos_to_defend[3:5]
+                assert gm.Position(4, 4) in cluster.pos_to_defend[3:5], cluster.pos_to_defend[3:5]
+                assert gm.Position(3, 6) in cluster.pos_to_defend[5:], cluster.pos_to_defend[5:]
+                assert gm.Position(3, 4) in cluster.pos_to_defend[5:], cluster.pos_to_defend[5:]
+                assert gm.Position(3, 5) in cluster.pos_to_defend[5:], cluster.pos_to_defend[5:]
+
+    @pytest.mark.parametrize("initialize_game", [11], indirect=['initialize_game'])
+    def test_positions_to_defend_if_same_starting_cluster(self, initialize_game):
+        c.LogicGlobals.game_state.update(
+            [
+                'r coal 4 5 419',
+                'r coal 5 5 419',
+                'r coal 6 5 419',
+                'u 0 0 u_1 3 5 0 0 0 0',
+                'u 0 1 u_2 7 5 0 0 0 0',
+                'c 0 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 0 c_1 3 5 0',
+                'ct 1 c_2 7 5 0',
+            ], 0
+        )
+
+        #     0  1  2  3  4  5  6  7  8  9 10
+        #  0 __ __ __ __ __ __ __ __ __ __ __
+        #  1 __ __ __ __ __ __ __ __ __ __ __
+        #  2 __ __ __ __ __ __ __ __ __ __ __
+        #  3 __ __ __ __ __ __ __ __ __ __ __
+        #  4 __ __ __ __ __ __ __ __ __ __ __
+        #  5 __ __ __ u1 co co co u2 __ __ __
+        #  6 __ __ __ __ __ __ __ __ __ __ __
+        #  7 __ __ __ __ __ __ __ __ __ __ __
+        #  8 __ __ __ __ __ __ __ __ __ __ __
+        #  9 __ __ __ __ __ __ __ __ __ __ __
+        # 10 __ __ __ __ __ __ __ __ __ __ __
+
+        for cluster in c.LogicGlobals.game_state.map.resource_clusters:
+            assert cluster.pos_to_defend[0] == gm.Position(3, 5)
+            assert gm.Position(3, 4) in cluster.pos_to_defend[1:3]
+            assert gm.Position(3, 6) in cluster.pos_to_defend[1:3]
+            assert gm.Position(4, 4) in cluster.pos_to_defend[3:5]
+            assert gm.Position(4, 6) in cluster.pos_to_defend[3:5]
+            assert gm.Position(5, 4) in cluster.pos_to_defend[5:7]
+            assert gm.Position(5, 6) in cluster.pos_to_defend[5:7]
+            assert gm.Position(6, 4) in cluster.pos_to_defend[7:9]
+            assert gm.Position(6, 6) in cluster.pos_to_defend[7:9]
+            assert gm.Position(7, 4) in cluster.pos_to_defend[9:]
+            assert gm.Position(7, 5) in cluster.pos_to_defend[9:]
+            assert gm.Position(7, 6) in cluster.pos_to_defend[9:]
+
     @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])
     def test_positions_to_defend_by_edge(self, initialize_game):
         c.LogicGlobals.game_state.update(
