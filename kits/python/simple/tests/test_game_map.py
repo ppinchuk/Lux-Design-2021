@@ -66,6 +66,7 @@ class TestResourceCluster:
             assert gm.Position(0, 3) in cluster.pos_to_defend[5:]
             assert gm.Position(3, 0) in cluster.pos_to_defend[5:]
 
+
 class TestGameMap:
     def test_bounds(self):
         c.LogicGlobals.game_state = g.Game(0, "3 3")
@@ -158,6 +159,25 @@ class TestPosition:
         assert pos.translate(c.Directions.WEST, 1) == gm.Position(9, 10)
         assert pos.translate(c.Directions.CENTER, 10) == gm.Position(10, 10)
         assert pos.translate(c.Directions.NORTH, -1) == gm.Position(10, 11)
+
+    def test_find_closest_city_tile(self):
+        c.LogicGlobals.game_state = g.Game(0, "3 3")
+        c.LogicGlobals.game_state.update([
+            'c 0 c_1 0 23',
+            'ct 0 c_1 1 1 0',
+        ], 0)
+        closest_city_pos = gm.Position(0, 0).find_closest_city_tile(
+            c.LogicGlobals.player,
+            c.LogicGlobals.game_state.map
+        )
+        assert closest_city_pos == gm.Position(1, 1)
+
+        c.LogicGlobals.game_state.update([], 0)
+        closest_city_pos = gm.Position(0, 0).find_closest_city_tile(
+            c.LogicGlobals.player,
+            c.LogicGlobals.game_state.map
+        )
+        assert closest_city_pos is None
 
     def test_pathing_distance_to(self):
         c.LogicGlobals.game_state = g.Game(0, "3 3")
