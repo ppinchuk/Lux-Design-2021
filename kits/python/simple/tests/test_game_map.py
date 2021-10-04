@@ -112,6 +112,28 @@ class TestResourceCluster:
     def test_positions_to_defend_by_edge(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
+                'r uranium 0 0 419',
+            ], 0
+        )
+
+        #    0  1  2  3  4  5  6
+        # 0 ur __ __ __ __ __ __
+        # 1 __ __ __ __ __ __ __
+        # 2 __ __ __ __ __ __ __
+        # 3 __ __ __ __ __ __ __
+        # 4 __ __ __ __ __ __ __
+        # 5 __ __ __ __ __ __ __
+        # 6 __ __ __ __ __ __ __
+
+        for cluster in c.LogicGlobals.game_state.map.resource_clusters:
+            assert cluster.pos_to_defend[0] == gm.Position(1, 1)
+            assert gm.Position(1, 0) in cluster.pos_to_defend[1:]
+            assert gm.Position(0, 1) in cluster.pos_to_defend[1:]
+
+    @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])
+    def test_positions_to_defend_by_edge2(self, initialize_game):
+        c.LogicGlobals.game_state.update(
+            [
                 'r coal 1 1 419',
             ], 0
         )
@@ -133,7 +155,7 @@ class TestResourceCluster:
             assert gm.Position(2, 0) in cluster.pos_to_defend[3:]
 
     @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])
-    def test_positions_to_defend_by_edge_2(self, initialize_game):
+    def test_positions_to_defend_by_edge_3(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'r coal 2 2 419',

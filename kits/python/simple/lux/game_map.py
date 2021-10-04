@@ -196,19 +196,22 @@ class ResourceCluster:
                         if game_map.is_loc_within_bounds(self.max_loc[0] + 1, y)
                     }
 
-                for p in [
-                    Position(self.min_loc[0] - 1, self.min_loc[1] - 1),  # TODO: fix this for corners that are within MAX_DISTANCE_FROM_EDGE
-                    Position(self.min_loc[0] - 1, self.max_loc[1] + 1),
-                    Position(self.max_loc[0] + 1, self.min_loc[1] - 1),
-                    Position(self.max_loc[0] + 1, self.max_loc[1] + 1),
-                ]:
-                    if game_map.is_within_bounds(p) and all([
-                        p.distance_to(Position(0, 0)) > MAX_DISTANCE_FROM_EDGE,
-                        p.distance_to(Position(0, game_map.height-1)) > MAX_DISTANCE_FROM_EDGE,
-                        p.distance_to(Position(game_map.width-1, 0)) > MAX_DISTANCE_FROM_EDGE,
-                        p.distance_to(Position(game_map.width-1, game_map.height-1)) > MAX_DISTANCE_FROM_EDGE,
-                    ]):
-                        self.pos_to_defend.add(p)
+                p = Position(self.min_loc[0] - 1, self.min_loc[1] - 1)
+                if game_map.is_within_bounds(p) and p.distance_to(Position(0, 0)) > MAX_DISTANCE_FROM_EDGE:
+                    self.pos_to_defend.add(p)
+
+                p = Position(self.min_loc[0] - 1, self.max_loc[1] + 1)
+                if game_map.is_within_bounds(p) and p.distance_to(Position(0, game_map.height-1)) > MAX_DISTANCE_FROM_EDGE:
+                    self.pos_to_defend.add(p)
+
+                p = Position(self.max_loc[0] + 1, self.min_loc[1] - 1)
+                if game_map.is_within_bounds(p) and p.distance_to(Position(game_map.width-1, 0)) > MAX_DISTANCE_FROM_EDGE:
+                    self.pos_to_defend.add(p)
+
+                p = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
+                if game_map.is_within_bounds(p) and p.distance_to(Position(game_map.width-1, game_map.height-1)) > MAX_DISTANCE_FROM_EDGE:
+                    self.pos_to_defend.add(p)
+
             log(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}")
 
             # opponent_x_vals, opponent_y_vals = [], []
