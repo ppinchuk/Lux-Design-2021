@@ -7,7 +7,7 @@ from random import shuffle, seed
 if getpass.getuser() == 'Paul':
     seed(69420)
 
-from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes, INFINITE_DISTANCE
+from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes, INFINITE_DISTANCE, GAME_CONSTANTS, ValidActions
 
 
 MAX_DISTANCE_FROM_EDGE = STRATEGY_HYPERPARAMETERS['MAX_DISTANCE_FROM_EDGE']
@@ -26,6 +26,7 @@ class ResourceCluster:
         self.total_amount = -1
         self.pos_to_defend = []
         self.pos_defended = []
+        self.pos_defended_by_player = []
         self.min_loc = None
         self.max_loc = None
         self.center_pos = None
@@ -246,6 +247,7 @@ class ResourceCluster:
 
         self.city_ids = set()
         self.pos_defended = []
+        self.pos_defended_by_player = set()
         for x in range(self.min_loc[0]-1, self.max_loc[0] + 2):
             for y in range(self.min_loc[1]-1, self.max_loc[1] + 2):
                 if game_map.is_loc_within_bounds(x, y):
@@ -253,6 +255,7 @@ class ResourceCluster:
                     if city_tile is not None:
                         if city_tile.cityid in LogicGlobals.player.city_ids:
                             self.city_ids.add(city_tile.cityid)
+                            self.pos_defended_by_player.add(city_tile.pos)
                         self.pos_defended.append(Position(x, y))
 
     @property
@@ -275,11 +278,11 @@ class Cell:
         self.citytile = None
         self.road = 0
 
-    def has_resource(self, do_wood_check=False):
-        if do_wood_check:
-            return self.resource is not None and ((self.resource.type != ResourceTypes.WOOD and self.resource.amount > 0) or (self.resource.type == ResourceTypes.WOOD and self.resource.amount >= 500))
-        else:
+    def has_resource(self, include_wood_that_is_growing=True):
+        if include_wood_that_is_growing:
             return self.resource is not None and self.resource.amount > 0
+        else:
+            return self.resource is not None and ((self.resource.type != ResourceTypes.WOOD and self.resource.amount > 0) or (self.resource.type == ResourceTypes.WOOD and self.resource.amount >= GAME_CONSTANTS["PARAMETERS"]["MAX_WOOD_AMOUNT"]))
 
     def is_empty(self):
         return self.citytile is None and not self.has_resource()
@@ -333,9 +336,9 @@ class GameMap:
         cell = self.get_cell(x, y)
         cell.resource = Resource(r_type, amount)
 
-    def num_adjacent_resources(self, pos, include_center=True, do_wood_check=False):
+    def num_adjacent_resources(self, pos, include_center=True, include_wood_that_is_growing=True):
         return sum(
-            self.get_cell_by_pos(p).has_resource(do_wood_check=do_wood_check)
+            self.get_cell_by_pos(p).has_resource(include_wood_that_is_growing=include_wood_that_is_growing)
             for p in pos.adjacent_positions(include_center=include_center)
             if self.is_within_bounds(p)
         )
@@ -344,7 +347,7 @@ class GameMap:
         return set(
             self.get_cell_by_pos(p).resource.type
             for p in pos.adjacent_positions(include_center=include_center)
-            if self.is_within_bounds(p) and self.get_cell_by_pos(p).has_resource(do_wood_check=True)
+            if self.is_within_bounds(p) and self.get_cell_by_pos(p).has_resource(include_wood_that_is_growing=True)
         )
 
     def resources(self, return_positions_only=False):
@@ -399,6 +402,8 @@ class GameMap:
         if not self.resource_clusters:
             print("No clusters found!",)
             return None
+        if pos is None:
+            return None
         for cluster in self.resource_clusters:
             if (cluster.min_loc[0] - 1 <= pos.x <= cluster.max_loc[0] + 1) and (
                     cluster.min_loc[1] - 1 <= pos.y <= cluster.max_loc[1] + 1):
@@ -423,9 +428,9 @@ class Position:
         self.x = x
         self.y = y
         self._closest_resource_pos = {
-            ResourceTypes.WOOD: None,
-            ResourceTypes.COAL: None,
-            ResourceTypes.URANIUM: None,
+            ResourceTypes.WOOD: [],
+            ResourceTypes.COAL: [],
+            ResourceTypes.URANIUM: [],
         }
         self._closest_city_pos = None
 
@@ -459,9 +464,11 @@ class Position:
                     if p == self:
                         return step
 
-                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos
+                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos - {pos}
+                    tiles_blocked_by_units = {u.pos for u in LogicGlobals.player.units if (LogicGlobals.game_state.map.get_cell_by_pos(u.pos).citytile is not None and (u.current_task is not None and u.current_task[0] != ValidActions.MOVE))}
+                    is_valid_to_move_to = is_valid_to_move_to and p not in tiles_blocked_by_units - {pos}
                     if avoid_own_cities:
-                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos
+                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos - {pos}
 
                     if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + max(1, cooldown - game_map.get_cell_by_pos(p).road)))
@@ -496,9 +503,11 @@ class Position:
                     if p == self:
                         return step + 1
 
-                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos
+                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos - {pos}
+                    tiles_blocked_by_units = {u.pos for u in LogicGlobals.player.units if (LogicGlobals.game_state.map.get_cell_by_pos(u.pos).citytile is not None and (u.current_task is not None and u.current_task[0] != ValidActions.MOVE))}
+                    is_valid_to_move_to = is_valid_to_move_to and p not in tiles_blocked_by_units - {pos}
                     if avoid_own_cities:
-                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos
+                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos - {pos}
 
                     if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + 1))
@@ -584,31 +593,38 @@ class Position:
                 return None
         return self._closest_city_pos
 
-    def _find_closest_resource(self, resources_to_consider, game_map):
+    def _find_closest_resource(self, resources_to_consider, game_map, tie_breaker_func=None):
 
         for resource in resources_to_consider:
-            if self._closest_resource_pos[resource] is None or not game_map.get_cell_by_pos(self._closest_resource_pos[resource]).has_resource():
+            if not self._closest_resource_pos[resource] or any(not game_map.get_cell_by_pos(p).has_resource() for p in self._closest_resource_pos[resource]):
+                self._closest_resource_pos[resource] = []
                 closest_dist = math.inf
                 for resource_tile in game_map.resources():
                     if resource_tile.resource.type != resource:
                         continue
                     dist = resource_tile.pos.distance_to(self)
-                    if dist < closest_dist:
+                    if dist <= closest_dist:
                         closest_dist = dist
-                        self._closest_resource_pos[resource] = resource_tile.pos
-        positions = list(filter(None, [self._closest_resource_pos[r] for r in resources_to_consider]))
+                        self._closest_resource_pos[resource].append(resource_tile.pos)
+        # positions = list(filter(None, [self._closest_resource_pos[r] for r in resources_to_consider]))
+        positions = [p for r in resources_to_consider for p in self._closest_resource_pos[r]]
         if positions:
-            return min(positions, key=self.distance_to)
+            if tie_breaker_func is None:
+                return min(positions, key=self.distance_to)
+            else:
+                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p)))
         else:
             return None
 
-    def find_closest_wood(self, game_map):
+    def find_closest_wood(self, game_map, tie_breaker_func=None):
         """ Find the closest wood to this position.
 
         Parameters
         ----------
         game_map : :GameMap:
             Map containing position and resources.
+        tie_breaker_func : callable, optional
+            Function used to break ties in distance to position.
 
         Returns
         -------
@@ -616,9 +632,9 @@ class Position:
             Position of closest resource.
 
         """
-        return self._find_closest_resource([ResourceTypes.WOOD], game_map)
+        return self._find_closest_resource([ResourceTypes.WOOD], game_map, tie_breaker_func=tie_breaker_func)
 
-    def find_closest_resource(self, player, game_map, r_type=None):
+    def find_closest_resource(self, player, game_map, r_type=None, tie_breaker_func=None):
         """ Find the closest resource to this position.
 
         Parameters
@@ -631,6 +647,8 @@ class Position:
         r_type : Constants.RESOURCE_TYPES, optional
             Type of resource to look for. If `None`,
             all resources are considered.
+        tie_breaker_func : callable, optional
+            Function used to break ties in distance to position.
 
         Returns
         -------
@@ -648,7 +666,7 @@ class Position:
             if player.researched_uranium():
                 resources_to_consider.append(ResourceTypes.URANIUM)
 
-        return self._find_closest_resource(resources_to_consider, game_map)
+        return self._find_closest_resource(resources_to_consider, game_map, tie_breaker_func=tie_breaker_func)
 
     def sort_directions_by_pathing_distance(self, target_pos, game_map, pos_to_check=None, tolerance=None, avoid_own_cities=False):
 

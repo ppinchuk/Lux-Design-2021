@@ -5,6 +5,7 @@ import lux.game as g
 import lux.game_objects as go
 import lux.game_map as gm
 import lux.constants as c
+from collections import deque
 
 """
 [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'rp 0 0' <- research points (player id, num)
@@ -53,6 +54,72 @@ class TestManageAction:
         )
 
         assert not actions
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_manage_at_resource_during_day(self, initialize_game):
+
+        c.LogicGlobals.game_state.update(
+            [
+                'r wood 2 2 314',
+                'u 0 0 u_1 1 2 0 96 0 0',
+                'c 0 c_1 0 23',
+                'ct 0 c_1 1 1 0',
+                'ccd 1 1 6',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 __ c1 __
+        # 2 __ u1 wo
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.COLLECT, gm.Position(2, 2)),
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+            unit.task_q = deque([(c.ValidActions.MANAGE, 'c_1')])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert actions == ['m u_1 n']
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_manage_at_resource_at_night(self, initialize_game):
+        for __ in range(70):
+            c.LogicGlobals.game_state.update([], 0)
+
+        c.LogicGlobals.game_state.update(
+            [
+                'r wood 2 2 314',
+                'u 0 0 u_1 1 2 0 96 0 0',
+                'c 0 c_1 0 23',
+                'ct 0 c_1 1 1 0',
+                'ccd 1 1 6',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 __ c1 __
+        # 2 __ u1 wo
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.COLLECT, gm.Position(2, 2)),
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+            unit.task_q = deque([(c.ValidActions.MANAGE, 'c_1')])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert actions == ['m u_1 n']
 
 
 class TestUnitMovement:

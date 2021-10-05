@@ -275,6 +275,74 @@ class TestPosition:
         assert pos.translate(c.Directions.NORTH, -1) == gm.Position(10, 11)
 
     @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_find_closest_resource_on_empty_map(self, initialize_game):
+        c.LogicGlobals.game_state.update([], 0)
+        closest_resource_pos = gm.Position(0, 0).find_closest_resource(
+            c.LogicGlobals.player, c.LogicGlobals.game_state.map
+        )
+        assert closest_resource_pos is None
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_find_closest_resource_with_not_enough_rp(self, initialize_game):
+        c.LogicGlobals.game_state.update([
+            'r uranium 2 2 331'
+        ], 0)
+        closest_resource_pos = gm.Position(0, 0).find_closest_resource(
+            c.LogicGlobals.player, c.LogicGlobals.game_state.map
+        )
+        assert closest_resource_pos is None
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_find_closest_resource_on_non_empty_map(self, initialize_game):
+        c.LogicGlobals.game_state.update([
+            'r wood 2 2 331',
+        ], 0)
+
+        closest_resource_pos = gm.Position(0, 0).find_closest_resource(
+            c.LogicGlobals.player, c.LogicGlobals.game_state.map
+        )
+        assert closest_resource_pos == gm.Position(2, 2)
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_find_closest_resource_without_tie_breaker(self, initialize_game):
+        c.LogicGlobals.game_state.update([
+            'r wood 2 1 331',
+            'r wood 1 2 331'
+        ], 0)
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 __ __ wo
+        # 2 __ wo __
+
+        closest_resource_pos = gm.Position(0, 0).find_closest_resource(
+            c.LogicGlobals.player, c.LogicGlobals.game_state.map
+        )
+        assert closest_resource_pos == gm.Position(1, 2) or closest_resource_pos == gm.Position(2, 1)
+
+    @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])
+    def test_find_closest_resource_with_tie_breaker(self, initialize_game):
+        c.LogicGlobals.game_state.update([
+            'r wood 2 1 331',
+            'r wood 3 2 331',
+        ], 0)
+
+        #    0  1  2  3  4  5  6
+        # 0 __ __ __ __ __ __ __
+        # 1 __ __ wo __ __ __ __
+        # 2 __ __ __ wo __ __ __
+        # 3 __ __ p1 p2 __ __ __
+        # 4 __ __ __ __ __ __ __
+        # 5 __ __ __ __ __ __ __
+        # 6 __ __ __ __ __ __ __
+
+        closest_resource_pos = gm.Position(2, 3).find_closest_resource(
+            c.LogicGlobals.player, c.LogicGlobals.game_state.map,
+            tie_breaker_func=gm.Position(3, 3).distance_to
+        )
+        assert closest_resource_pos == gm.Position(3, 2)
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
     def test_find_closest_city_tile(self, initialize_game):
         c.LogicGlobals.game_state.update([
             'c 0 c_1 0 23',

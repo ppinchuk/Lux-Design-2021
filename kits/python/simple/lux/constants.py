@@ -97,6 +97,8 @@ class LogicGlobals:
     RBS_cluster_carts = {}
     radius_for_clusters = 0
     main_city_close_to_coal = None
+    CLUSTER_ID_TO_BUILDERS = {}
+    CLUSTER_ID_TO_MANAGERS = {}
 
 
 UNIT_TYPE_AS_STR = {

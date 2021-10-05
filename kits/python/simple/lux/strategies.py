@@ -1,13 +1,121 @@
 import sys
-from .constants import StrategyTypes, LogicGlobals, ValidActions, STRATEGY_HYPERPARAMETERS, ResourceTypes, print
+from .constants import StrategyTypes, LogicGlobals, ValidActions, STRATEGY_HYPERPARAMETERS, ResourceTypes, print, GAME_CONSTANTS
 from .game_map import Position
-from .strategy_utils import reset_unit_tasks, city_tile_to_build, compute_tbs_com, city_tile_to_build_tbs, set_rbs_rtype, find_clusters_to_colonize_rbs
+from .strategy_utils import reset_unit_tasks, city_tile_to_build, compute_tbs_com, city_tile_to_build_tbs, set_rbs_rtype, find_clusters_to_colonize_rbs, city_tile_to_build_from_id, set_unit_cluster_to_defend_id
 
 # if our cluster is separate from other base, build around them.
 # Prefer 2x2 clusters
 
 
 def starter_strategy(unit, player):
+
+    if player.current_strategy != StrategyTypes.STARTER:
+        player.current_strategy = StrategyTypes.STARTER
+        reset_unit_tasks(player)
+        LogicGlobals.pos_being_built = set()
+
+    if not unit.can_act():
+        return
+
+    if unit.is_cart():
+        return
+
+    # for __, city in player.cities.items():
+    #     if LogicGlobals.unlocked_uranium and ResourceTypes.URANIUM in city.neighbor_resource_types:
+    #         if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 80) + 1:
+    #             unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+    #             city.managers.add(unit.id)
+    #             return
+    #
+    #     if LogicGlobals.unlocked_coal and ResourceTypes.COAL in city.neighbor_resource_types:
+    #         if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 50) + 1:
+    #             unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+    #             city.managers.add(unit.id)
+    #             return
+    #
+    #     if len(city.citytiles) > 2 and ResourceTypes.WOOD in city.neighbor_resource_types:
+    #         if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 80) + 1:
+    #             unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+    #             city.managers.add(unit.id)
+    #             return
+
+    # if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
+    #     # cluster_to_defend = min(
+    #     #     LogicGlobals.clusters_to_colonize,
+    #     #     key=lambda c: min(unit.pos.distance_to(p) for p in c.pos_to_defend)
+    #     # )
+    #     cluster_to_defend = max(
+    #         LogicGlobals.clusters_to_colonize,
+    #         key=lambda c: c.current_score
+    #     )
+
+    set_unit_cluster_to_defend_id(unit, player)
+
+    if unit.cluster_to_defend_id is None:
+        return
+
+    cluster_has_no_cities = not LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids
+    # cluster_has_no_builders = not LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
+    cluster_has_too_few_builders = len(LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())) <= STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()))
+    unit_is_a_builder = unit.id in LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
+
+    if cluster_has_no_cities or unit_is_a_builder or cluster_has_too_few_builders:
+        # TODO: WHAT IF THERE IS NO MORE WOOD??
+        new_city_pos = city_tile_to_build_from_id(
+            unit.cluster_to_defend_id,
+            LogicGlobals.game_state.map,
+            LogicGlobals.pos_being_built
+        )
+        if new_city_pos is not None:
+            unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
+            LogicGlobals.pos_being_built.add(new_city_pos)
+            LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()) | {unit.id}
+            LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+
+            # LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id].add(unit.id)
+            # LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id].discard(unit.id)
+            return
+        # else:
+        #     unit.cluster_to_defend_id = None
+        #     LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+        #     LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+        #     starter_strategy(unit, player)
+
+    if not LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids:  # can happen when all positions are in the process of being built such that no more builders are needed but also there are no cities to manage
+        return
+
+    # city_id_to_manage = min(
+    #     LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids,
+    #     key=lambda i: (len(LogicGlobals.player.cities[i].managers), -LogicGlobals.player.cities[i].light_upkeep)
+    # )
+    city_id_to_manage = min(
+        LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids,
+        key=lambda i: LogicGlobals.player.cities[i].fuel - (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] * LogicGlobals.player.cities[i].light_upkeep) + len(LogicGlobals.player.cities[i].managers) * LogicGlobals.game_state.turns_until_next_night * 20
+    )
+    unit.set_task(action=ValidActions.MANAGE, target=city_id_to_manage)
+    LogicGlobals.player.cities[city_id_to_manage].managers.add(unit.id)
+    # LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id].add(unit.id)
+    # LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id].discard(unit.id)
+
+    LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) | {unit.id}
+    LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+
+    if unit.current_task is None:
+        print(LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id))
+        print(LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id])
+        print(LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id])
+
+
+    # TODO: May be better if a city requests a manager from a nearby unit
+    # if LogicGlobals.player.city_tile_count >= 5 or (LogicGlobals.game_state.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]) > GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] // 2:
+    #     for __, city in LogicGlobals.player.cities.items():
+    #         if not city.managers:
+    #             unit.set_task(action=ValidActions.MANAGE, target=city.cityid)
+    #             city.managers.add(unit.id)
+    #             return
+
+
+def starter_strategy_old(unit, player):
 
     if player.current_strategy != StrategyTypes.STARTER:
         player.current_strategy = StrategyTypes.STARTER

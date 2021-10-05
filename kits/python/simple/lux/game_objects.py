@@ -1,9 +1,6 @@
 from typing import Dict
-import sys
 from itertools import chain
 from collections import deque
-import random
-# print("SOME RANDOM NUMBER GAME_OBJECTS.PY:", random.random(), file=sys.stderr)
 from .constants import ValidActions, print, log, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS, UnitTypes, LogicGlobals
 from .game_map import Position
 from .strategies import STRATEGY_FUNCTIONS
@@ -63,8 +60,20 @@ class City:
         self.citytiles.append(ct)
         return ct
 
-    def get_light_upkeep(self):
-        return self.light_upkeep
+    @property
+    def num_night_turns_can_survive(self):
+        return self.fuel / self.light_upkeep
+
+    @property
+    def num_turns_can_survive(self):
+        num_turns = LogicGlobals.game_state.turns_until_next_night
+        num_night_turns = self.num_night_turns_can_survive
+
+        while num_night_turns > GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"]:
+            num_turns += GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]
+            num_night_turns -= GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"]
+        num_turns += num_night_turns
+        return num_turns
 
     def update_resource_positions(self, game_map):
         num_resources_for_tile = [
@@ -159,8 +168,6 @@ class Unit:
             self.previous_pos.append(self.pos)
 
     def save_state(self):
-        # if self.id in {'u_16', 'u_7', 'u_21'}:
-        #     print(f"SAVING CURRENT TASK FOR UNIT: {self.id}", self.current_task)
         UNIT_CACHE[self.id] = {
             key: self.__dict__.get(key, None)
             for key in [
@@ -172,7 +179,7 @@ class Unit:
                 'cluster_to_defend',
                 'cluster_to_defend_id',
                 'current_strategy',
-                'previous_pos'
+                'previous_pos',
             ]
         }
 
@@ -237,8 +244,6 @@ class Unit:
                 f"but unit is already at max cargo capacity.",
             )
             return
-        # if action == ValidActions.BUILD:
-        #     self.should_avoid_citytiles = True
         self.current_task = (action, target, *args)
         # if action == ValidActions.MANAGE:
         # print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}")
@@ -250,19 +255,27 @@ class Unit:
     def should_avoid_citytiles(self):
         if not self.task_q:
             return False
-        return self.task_q[0][0] == ValidActions.BUILD
+        return (self.task_q[0][0] == ValidActions.TRANSFER) or (LogicGlobals.game_state.turns_until_next_night >= STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER'] and (self.task_q[0][0] == ValidActions.BUILD or (len(self.task_q) >= 2 and self.task_q[1][0] == ValidActions.BUILD)))
+
+    @property
+    def has_enough_resources_to_manage_city(self):
+        return self.num_resources > 0.9 * GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str]
+
+    def can_make_it_back_to_city_before_it_dies(self, city_id, closest_citytile_to_unit=None, mult=1.1):
+        if closest_citytile_to_unit is None:
+            closest_citytile_to_unit = min(
+                [cell.pos for cell in LogicGlobals.player.cities[city_id].citytiles],
+                key=self.pos.distance_to
+            )
+        return mult * LogicGlobals.player.cities[city_id].num_turns_can_survive > self.turn_distance_to(closest_citytile_to_unit)
 
     def propose_action(self, player, game_state):
 
         # This does not currently work
         # if game_state.turns_until_next_night == 3:
         #     print(f"STARTING THE AVOID ON TURN {game_state.turn}")
-        #     self.was_avoiding_citytiles = self.should_avoid_citytiles
-        #     self.should_avoid_citytiles = True
         # elif game_state.turns_until_next_night == 30:
         #     print(f"RESETTING THE AVOID ON TURN {game_state.turn}")
-        #     self.should_avoid_citytiles = self.was_avoiding_citytiles
-        #     self.was_avoiding_citytiles = False
 
         if not self.can_act():
             return None, None
@@ -277,7 +290,7 @@ class Unit:
 
         action, target, *extra = self.current_task
 
-        if action == ValidActions.TRANSFER:  # TODO: this needs to be constantly checked in case cart or other unit is moving
+        if action == ValidActions.TRANSFER:
             target_id, __, __ = extra
             for unit in player.units:
                 if unit.id == target_id:
@@ -288,47 +301,60 @@ class Unit:
                         return self.propose_action(player, game_state)
 
         elif action == ValidActions.MANAGE:
-            if target in player.cities and player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, do_wood_check=False) > 0 for p in  player.cities[target].resource_positions):
-                print(f"Unit {self.id} can manage at resource positions :", player.cities[target].resource_positions)
-                for target_pos in player.cities[target].resource_positions:
-                    if game_state.map.num_adjacent_resources(target_pos, do_wood_check=True) > 0:
-                        self.push_task((ValidActions.MOVE, target_pos))
-                        return self.propose_action(player, game_state)
+            if target in player.cities:
+                if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, include_wood_that_is_growing=False) > 0 for p in player.cities[target].resource_positions):  # TODO: This wood check may make the manage role too difficult
+                    print(f"Unit {self.id} can manage at resource positions :", player.cities[target].resource_positions)
+                    for target_pos in player.cities[target].resource_positions:
+                        if game_state.map.num_adjacent_resources(target_pos, include_wood_that_is_growing=False) > 0:  # TODO: This wood check may make the manage role too difficult
+                            self.push_task((ValidActions.MOVE, target_pos))
+                            return self.propose_action(player, game_state)
+            else:
+                print(f"Manager {self.id} is managing a non-existent city!")
+                return None, None
 
-            if self.num_resources < GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str] - GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str]:
+            closest_citytile_to_unit = min(
+                [cell.pos for cell in player.cities[target].citytiles],
+                key=self.pos.distance_to
+            )
+
+            if not self.has_enough_resources_to_manage_city:
                 print(f"Manager {self.id} has to go find resources.")
                 target_pos = self.pos.find_closest_resource(
                     player, game_state.map
                 )
                 print(f"Found closest resource to Manager {self.id}:", target_pos)
                 if target_pos is not None:
-                    if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.0):
-                        self.push_task((ValidActions.COLLECT, target_pos))
-                        return self.propose_action(player, game_state)
-                    else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
-                        distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
-                        print(
-                            f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
-                        return None, None
+                    if self.can_make_it_back_to_city_before_it_dies(target, closest_citytile_to_unit=closest_citytile_to_unit, mult=1.1):
+                        if target_pos != self.pos and self.can_make_it_to_pos_without_dying(target_pos, mult=1.1): #  self.can_make_it_before_nightfall(target_pos, game_state, mult=1.0):
+                            self.push_task((ValidActions.COLLECT, target_pos))
+                            return self.propose_action(player, game_state)
+                        else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
+                            distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
+                            print(
+                                f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
+                            return None, None
                 else:
                     print(f"Manager {self.id} wants to go find resources but there are none left!")
                     return None, None
+            # else:
+            #     target_pos = min(
+            #         [cell.pos for cell in player.cities[target].citytiles],
+            #         key=self.pos.distance_to
+            #     )
+            #     if target_pos != self.pos and self.can_make_it_to_pos_without_dying(target_pos, mult=1.1): # self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
+            #         self.push_task((ValidActions.MOVE, target_pos))
+            #         return self.propose_action(player, game_state)
+            #     else:
+            #         return None, None
+
+            if closest_citytile_to_unit != self.pos and self.can_make_it_to_pos_without_dying(closest_citytile_to_unit, mult=1.1):  # self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
+                self.push_task((ValidActions.MOVE, closest_citytile_to_unit))
+                return self.propose_action(player, game_state)
             else:
-                target_pos = min(
-                    [cell.pos for cell in player.cities[target].citytiles],
-                    key=self.pos.distance_to
-                )
-                if target_pos != self.pos and self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
-                    self.push_task((ValidActions.MOVE, target_pos))
-                    return self.propose_action(player, game_state)
-                else:
-                    return None, None
+                print(f"Manager {self.id} cannot make it back to city in time!")
+                return None, None
 
         elif action == ValidActions.BUILD:
-            # if self.num_resources > 0:
-            #     self.should_avoid_citytiles = True
-
-            # self.should_avoid_citytiles = True
             closest_resource_pos = self.closest_resource_pos_for_building(target, game_state, player)
             if not self.has_enough_resources_to_build:
                 if closest_resource_pos is not None:
@@ -342,12 +368,15 @@ class Unit:
                 if self.can_make_it_before_nightfall(target, game_state, mult=1.1, tolerance=STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER']):
                     self.push_task((ValidActions.MOVE, target))
                     return self.propose_action(player, game_state)
-                else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
-                    return None, None
+                else:
+                    closest_city_pos = target.find_closest_city_tile(player, game_state.map)
+                    if closest_city_pos is not None and self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"] - (LogicGlobals.game_state.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]):
+                        self.push_task((ValidActions.MOVE, closest_city_pos))
+                        return self.propose_action(player, game_state)
+                    else:
+                        return None, None  # TODO: What should we do if worker is too far away from resource to get there before night time and there is no city to dump resources into?
             if game_state.turns_until_next_night < STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER']:
                 return None, None
-        # else:
-        #     self.should_avoid_citytiles = False
 
         elif action == ValidActions.COLLECT:
             if game_state.map.get_cell_by_pos(target).resource is None:
@@ -365,9 +394,9 @@ class Unit:
                 return self.propose_action(player, game_state)
 
         elif action == ValidActions.MOVE:
-            if game_state.map.get_cell_by_pos(self.pos).citytile is not None and game_state.turns_until_next_night <= 1: # TODO:  This is basic and can probably be improved... We don't even check for a resource in the movement direction
-                return None, None
-            if not self.can_make_it_before_nightfall(target, game_state, mult=1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
+            # if game_state.map.get_cell_by_pos(self.pos).citytile is not None and game_state.turns_until_next_night <= 1: # TODO:  This is basic and can probably be improved... We don't even check for a resource in the movement direction
+            #     return None, None
+            if not self.can_make_it_to_pos_without_dying(target): # self.can_make_it_before_nightfall(target, game_state, mult=1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
                 closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
                 if closest_resource_pos is not None and closest_resource_pos != target:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
@@ -425,7 +454,7 @@ class Unit:
                     self.current_task = None
                 self.check_for_task_completion(game_map, player)
             elif action == ValidActions.COLLECT:
-                if game_map.get_cell_by_pos(target).resource is None or self.cargo_space_left() <= 0:
+                if game_map.get_cell_by_pos(target).resource is None: #  or self.cargo_space_left() <= 0:
                     if ind >= len(self.task_q) - 1:
                         self.task_q = deque()
                     else:
@@ -450,22 +479,32 @@ class Unit:
             if self.pos == target:
                 self.current_task = None
                 self.previous_pos = deque(maxlen=2)
-            elif self.task_q and self.task_q[0][0] in ValidActions.can_be_adjacent() and self.pos.is_adjacent(target) and game_map.get_cell_by_pos(self.pos).citytile is None:
-                self.current_task = None
-                self.previous_pos = deque(maxlen=2)
+            elif self.task_q:
+                if self.task_q[0][0] in ValidActions.can_be_adjacent() and self.pos.is_adjacent(target) and game_map.get_cell_by_pos(self.pos).citytile is None:
+                    self.current_task = None
+                    self.previous_pos = deque(maxlen=2)
+                elif self.task_q[0][0] == ValidActions.TRANSFER:
+                    self.current_task = None
         elif action == ValidActions.COLLECT:
-            if self.cargo_space_left() <= 0 or game_map.get_cell_by_pos(target).resource is None:
+            if game_map.get_cell_by_pos(target).resource is None:
                 self.current_task = None
+            elif self.cargo_space_left() <= 0:
+                self.current_task = None
+            elif self.task_q and self.task_q[0][0] == ValidActions.MANAGE:
+                if self.has_enough_resources_to_manage_city:
+                    self.current_task = None
+                elif self.num_resources > 0 and not self.can_make_it_back_to_city_before_it_dies(self.task_q[0][1], closest_citytile_to_unit=None, mult=1.1):
+                    self.current_task = None
+                elif self.total_fuel >= STRATEGY_HYPERPARAMETERS["STARTER"][f"MAX_FUEL_PER_MANAGER_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]:
+                    self.current_task = None
         elif action == ValidActions.BUILD:
             city_tile = game_map.get_cell_by_pos(target).citytile
             if city_tile is not None:
                 city_tile.cluster_to_defend_id = self.cluster_to_defend_id
-                # self.should_avoid_citytiles = False
                 self.current_task = None
                 self.has_colonized = True
             # elif player.current_strategy == StrategyTypes.STARTER and game_map.position_to_cluster(target) is None:
             elif self.current_strategy == StrategyTypes.STARTER and game_map.position_to_cluster(target) is None:
-                # self.should_avoid_citytiles = False
                 self.current_task = None
                 self.has_colonized = True
         elif action == ValidActions.PILLAGE and game_map.get_cell_by_pos(target).road == 0:
@@ -473,6 +512,9 @@ class Unit:
         elif action == ValidActions.TRANSFER and self.did_just_transfer:
             self.did_just_transfer = False
             self.current_task = None
+        elif action == ValidActions.MANAGE:
+            if target in player.city_ids and player.cities[target].num_turns_can_survive >= GAME_CONSTANTS["PARAMETERS"]["MAX_DAYS"] - LogicGlobals.game_state.turn + GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]:
+                self.current_task = None
 
         # if self.current_task is None:
         #     print(f"Unit {self.id} task was set to None during completion check!")
@@ -507,15 +549,25 @@ class Unit:
         return self.cargo.wood + self.cargo.coal + self.cargo.uranium
 
     @property
+    def total_fuel(self):
+        return (
+            self.cargo.wood * GAME_CONSTANTS["PARAMETERS"]["RESOURCE_TO_FUEL_RATE"]["WOOD"]
+            + self.cargo.coal * GAME_CONSTANTS["PARAMETERS"]["RESOURCE_TO_FUEL_RATE"]["COAL"]
+            + self.cargo.uranium * GAME_CONSTANTS["PARAMETERS"]["RESOURCE_TO_FUEL_RATE"]["URANIUM"]
+        )
+
+    @property
     def has_enough_resources_to_build(self) -> bool:
         return self.num_resources >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
 
     def closest_resource_pos_for_building(self, build_pos, game_state, player):
         if self.num_resources >= 0.75 * GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
-            closest_resource_pos = build_pos.find_closest_resource(player, game_state.map)
-        else:
-            closest_resource_pos = build_pos.find_closest_wood(game_state.map)
-        return closest_resource_pos
+            return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
+
+        closest_resource_pos = build_pos.find_closest_wood(game_state.map, tie_breaker_func=self.turn_distance_to)
+        if closest_resource_pos is not None:
+            return closest_resource_pos
+        return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
 
     def can_build(self, game_map) -> bool:
         """
@@ -534,15 +586,28 @@ class Unit:
         """
         return self.cooldown < 1
 
-    def can_make_it_before_nightfall(self, target_pos, game_state, mult=1.0, tolerance=0):
-        if target_pos is None:
-            return False
-        turns_to_target = self.pos.turn_distance_to(
+    def turn_distance_to(self, target_pos):
+        return self.pos.turn_distance_to(
             target_pos,
-            game_state.map,
+            LogicGlobals.game_state.map,
             cooldown=GAME_CONSTANTS["PARAMETERS"]["UNIT_ACTION_COOLDOWN"][self.type_str],
             avoid_own_cities=self.should_avoid_citytiles,
         )
+
+    def can_make_it_to_pos_without_dying(self, target_pos, mult=1.0):
+        num_turns_left = self.turn_distance_to(target_pos) - LogicGlobals.game_state.turns_until_next_night
+        num_night_turns = 0
+        while num_turns_left > GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"]:
+            num_night_turns += GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"]
+            num_turns_left -= GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"]
+        num_night_turns += max(0, num_turns_left)
+        fuel_needed_to_survive = num_night_turns * GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str]
+        return self.total_fuel >= mult * fuel_needed_to_survive
+
+    def can_make_it_before_nightfall(self, target_pos, game_state, mult=1.0, tolerance=0):
+        if target_pos is None:
+            return False
+        turns_to_target = self.turn_distance_to(target_pos)
         return turns_to_target * mult + tolerance < game_state.turns_until_next_night
 
     def move(self, dir, logs=None) -> str:

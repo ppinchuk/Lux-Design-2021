@@ -133,6 +133,15 @@ def update_logic_globals(player):
     for id_ in units_lost:
         go.UNIT_CACHE.pop(id_)
 
+    for k, v in LogicGlobals.CLUSTER_ID_TO_BUILDERS.items():
+        LogicGlobals.CLUSTER_ID_TO_BUILDERS[k] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(k, set()) & player.unit_ids
+
+    for k, v in LogicGlobals.CLUSTER_ID_TO_MANAGERS.items():
+        LogicGlobals.CLUSTER_ID_TO_MANAGERS[k] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(k, set()) & player.unit_ids
+
+    # print("Builders:", ", ".join([f"{LogicGlobals.game_state.map.get_cluster_by_id(k)}: {v}" for k, v in LogicGlobals.CLUSTER_ID_TO_BUILDERS.items()]))
+    # print("Managers:", ", ".join([f"{LogicGlobals.game_state.map.get_cluster_by_id(k)}: {v}" for k, v in LogicGlobals.CLUSTER_ID_TO_MANAGERS.items()]))
+
     LogicGlobals.RBS_cluster_carts = {}
     for unit in LogicGlobals.player.units:
         if unit.is_cart():
@@ -159,6 +168,7 @@ def gather_turn_information(player, opponent):
 
     for __, city in opponent.cities.items():
         for tile in city.citytiles:
+            blocked_positions.add(tile.pos)
             enemy_blocked_positions.add(tile.pos)
 
     LogicGlobals.pos_being_built = set()
@@ -274,6 +284,8 @@ def unit_action_resolution(player, opponent):
                     continue
                 if new_pos in unit.previous_pos:
                     continue
+                if LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile is not None and LogicGlobals.game_state.turns_until_next_night <= 1 and LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is None and LogicGlobals.game_state.map.num_adjacent_resources(new_pos, include_center=True, include_wood_that_is_growing=True) == 0:
+                    continue
                 pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
                 if not LogicGlobals.game_state.map.is_within_bounds(new_pos) or (
                         pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5):
@@ -352,32 +364,64 @@ def agent(observation, configuration):
     # actions, debug_info = old_unit_action_resolution(player, opponent)
     actions, debug_info = unit_action_resolution(LogicGlobals.player, LogicGlobals.opponent)
 
-    for _, city in LogicGlobals.player.cities.items():
+    spawned_this_round = 0
+    for _, city in sorted(LogicGlobals.player.cities.items(), key=lambda pair: -int(pair[0].split("_")[1])):
         for city_tile in city.citytiles:
             if city_tile.can_act():
-                if len(LogicGlobals.player.units) < LogicGlobals.player.city_tile_count:
+                if len(LogicGlobals.player.units) + spawned_this_round < LogicGlobals.player.city_tile_count:
                     if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                         actions.append(city_tile.build_worker())
+                        spawned_this_round += 1
                         cluster = LogicGlobals.game_state.map.position_to_cluster(city_tile.pos)
                         if cluster is not None:
                             cluster.n_workers_spawned += 1
-                    elif LogicGlobals.player.current_strategy == StrategyTypes.TIME_BASED:
-                        if city_tile.pos in LogicGlobals.TBS_citytiles:
-                            actions.append(city_tile.build_worker())
-                    elif LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
-                        if city_tile.cluster_to_defend_id is not None:
-                            existing_carts = LogicGlobals.RBS_cluster_carts.get(city_tile.cluster_to_defend_id, set())
-                            if len(existing_carts) < STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['MAX_CARTS_PER_CLUSTER']:
-                                actions.append(city_tile.build_cart())
-                                existing_carts.add(f"Pending_cart_{city_tile.pos}")
-                                LogicGlobals.RBS_cluster_carts[city_tile.cluster_to_defend_id] = existing_carts
-                                continue
-                        if city_tile.pos in LogicGlobals.RBS_citytiles:
-                            actions.append(city_tile.build_worker())
                 else:
                     if LogicGlobals.player.current_strategy == StrategyTypes.STARTER and not LogicGlobals.player.researched_uranium():
                         actions.append(city_tile.research())
                         LogicGlobals.player.research_points += 1
+
+    # for _, city in LogicGlobals.player.cities.items():
+    #     for city_tile in city.citytiles:
+    #         if city_tile.can_act():
+    #             if len(LogicGlobals.player.units) < LogicGlobals.player.city_tile_count:
+    #                 if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
+    #                     actions.append(city_tile.build_worker())
+    #                     cluster = LogicGlobals.game_state.map.position_to_cluster(city_tile.pos)
+    #                     if cluster is not None:
+    #                         cluster.n_workers_spawned += 1
+    #                 elif LogicGlobals.player.current_strategy == StrategyTypes.TIME_BASED:
+    #                     if city_tile.pos in LogicGlobals.TBS_citytiles:
+    #                         actions.append(city_tile.build_worker())
+    #                 elif LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
+    #                     if city_tile.cluster_to_defend_id is not None:
+    #                         existing_carts = LogicGlobals.RBS_cluster_carts.get(city_tile.cluster_to_defend_id, set())
+    #                         if len(existing_carts) < STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['MAX_CARTS_PER_CLUSTER']:
+    #                             actions.append(city_tile.build_cart())
+    #                             existing_carts.add(f"Pending_cart_{city_tile.pos}")
+    #                             LogicGlobals.RBS_cluster_carts[city_tile.cluster_to_defend_id] = existing_carts
+    #                             continue
+    #                     if city_tile.pos in LogicGlobals.RBS_citytiles:
+    #                         actions.append(city_tile.build_worker())
+    #             else:
+    #                 if LogicGlobals.player.current_strategy == StrategyTypes.STARTER and not LogicGlobals.player.researched_uranium():
+    #                     actions.append(city_tile.research())
+    #                     LogicGlobals.player.research_points += 1
+
+    # for _, city in LogicGlobals.player.cities.items():
+    #     for city_tile in city.citytiles:
+    #         if city_tile.can_act():
+    #             if len(LogicGlobals.player.units) < LogicGlobals.player.city_tile_count:
+    #                 if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
+    #                     cluster = LogicGlobals.game_state.map.get_cluster_by_id(city_tile.cluster_to_defend_id)
+    #                     if cluster is not None:
+    #                         if len(LogicGlobals.CLUSTER_ID_TO_BUILDERS[cluster.id]) + len(LogicGlobals.CLUSTER_ID_TO_MANAGERS[cluster.id]) < len(cluster.pos_defended_by_player):
+    #                             actions.append(city_tile.build_worker())
+    #                             cluster.n_workers_spawned += 1
+    #                             continue
+    #             if LogicGlobals.player.current_strategy == StrategyTypes.STARTER and not LogicGlobals.player.researched_uranium():
+    #                 actions.append(city_tile.research())
+    #                 LogicGlobals.player.research_points += 1
+
 
     # DEBUG STUFF
 

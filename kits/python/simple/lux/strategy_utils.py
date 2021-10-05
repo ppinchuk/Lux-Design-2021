@@ -20,6 +20,89 @@ def city_tile_to_build(cluster, game_map, pos_being_built):
     return None
 
 
+def city_tile_to_build_from_id(cluster_id, game_map, pos_being_built):
+    if cluster_id is None:
+        return None
+    for pos in game_map.get_cluster_by_id(cluster_id).pos_to_defend:
+        cell = game_map.get_cell_by_pos(pos)
+        if cell.is_empty() and pos not in pos_being_built:
+            return cell.pos
+    return None
+
+
+def set_unit_cluster_to_defend_id(unit, player):
+    if unit.cluster_to_defend_id is None or unit.cluster_to_defend_id not in {rc.id for rc in LogicGlobals.game_state.map.resource_clusters}:
+        if unit.cluster_to_defend_id is not None:
+            LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+            LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+        unit.cluster_to_defend_id = None
+        if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
+            closest_city_tile_pos = unit.pos.find_closest_city_tile(player, game_map=LogicGlobals.game_state.map)
+            if closest_city_tile_pos is not None:
+                closest_cluster = LogicGlobals.game_state.map.position_to_cluster(closest_city_tile_pos)
+            else:
+                closest_cluster = None
+
+            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
+                unit.cluster_to_defend_id = min(
+                    LogicGlobals.clusters_to_colonize,
+                    key=lambda c: unit.pos.distance_to(c.center_pos)  # NOTE: Currently does NOT prefer unlocked resources
+                ).id
+                closest_cluster.n_workers_sent_to_colonize += 1
+                print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+                return
+
+        cluster = LogicGlobals.game_state.map.position_to_cluster(
+            unit.pos.find_closest_resource(
+                player=player,
+                game_map=LogicGlobals.game_state.map,
+            )
+        )
+        if cluster is not None:
+            unit.cluster_to_defend_id = cluster.id
+            print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+
+# def set_unit_cluster_to_defend_id(unit, player):
+#     if unit.cluster_to_defend_id is None or unit.cluster_to_defend_id not in {rc.id for rc in LogicGlobals.game_state.map.resource_clusters}:
+#         if unit.cluster_to_defend_id is not None:
+#             LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+#             LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
+#         unit.cluster_to_defend_id = None
+#         if not unit.has_colonized and LogicGlobals.clusters_to_colonize:
+#             closest_city_tile_pos = unit.pos.find_closest_city_tile(player, game_map=LogicGlobals.game_state.map)
+#             if closest_city_tile_pos is not None:
+#                 closest_cluster = LogicGlobals.game_state.map.position_to_cluster(closest_city_tile_pos)
+#             else:
+#                 closest_cluster = None
+#
+#             if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
+#                 unit.cluster_to_defend_id = min(
+#                     LogicGlobals.clusters_to_colonize,
+#                     key=lambda c: unit.pos.distance_to(c.center_pos)  # NOTE: Currently does NOT prefer unlocked resources
+#                 ).id
+#                 closest_cluster.n_workers_sent_to_colonize += 1
+#             else:
+#                 cluster = LogicGlobals.game_state.map.position_to_cluster(
+#                     unit.pos.find_closest_resource(
+#                         player=player,
+#                         game_map=LogicGlobals.game_state.map,
+#                     )
+#                 )
+#                 if cluster is not None:
+#                     unit.cluster_to_defend_id = cluster.id
+#
+#         else:
+#             cluster = LogicGlobals.game_state.map.position_to_cluster(
+#                 unit.pos.find_closest_resource(
+#                     player=player,
+#                     game_map=LogicGlobals.game_state.map,
+#                 )
+#             )
+#             if cluster is not None:
+#                 unit.cluster_to_defend_id = cluster.id
+#         print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+
+
 def compute_tbs_com(game_map):
     tot_amount = 0
     x_com = y_com = 0
