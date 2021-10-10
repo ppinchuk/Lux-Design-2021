@@ -13,6 +13,7 @@ def _reset_state():
 
 @pytest.fixture
 def initialize_game(request):
+    _reset_state()
     c.LogicGlobals.game_state = g.Game(0, f"{request.param} {request.param}")
     yield
     _reset_state()
