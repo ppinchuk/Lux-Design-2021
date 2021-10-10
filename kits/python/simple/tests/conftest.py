@@ -5,10 +5,19 @@ import lux.constants as c
 import lux.game as g
 
 
+def _reset_state():
+    gm.MAP_CACHE.clear()
+    go.UNIT_CACHE.clear()
+    c.LogicGlobals.reset()
+
+
 @pytest.fixture
 def initialize_game(request):
     c.LogicGlobals.game_state = g.Game(0, f"{request.param} {request.param}")
     yield
-    gm.MAP_CACHE.clear()
-    go.UNIT_CACHE.clear()
-    c.LogicGlobals.reset()
+    _reset_state()
+
+
+@pytest.fixture
+def reset_agent_state():
+    return _reset_state
