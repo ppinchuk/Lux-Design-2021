@@ -347,7 +347,7 @@ def unit_action_resolution(player, opponent):
     return actions, debug_info
 
 
-def agent(observation, configuration):
+def agent(observation, configuration, include_debug_for_vis=True):
 
     ### Do not edit ###
     if observation["step"] == 0:
@@ -424,114 +424,114 @@ def agent(observation, configuration):
 
 
     # DEBUG STUFF
-
-    actions.append(
-        annotate.sidetext(
-            f"Current Strategy: {LogicGlobals.player.current_strategy}",
-        )
-    )
-    actions.append(
-        annotate.sidetext(
-            f"Found {len(LogicGlobals.game_state.map.resource_clusters)} clusters",
-        )
-    )
-    actions.append(
-        annotate.sidetext(
-            "Cluster - N_resource - N_defend - Score",
-        )
-    )
-    for cluster in sorted(LogicGlobals.game_state.map.resource_clusters, key=lambda c: (c.center_pos.x, c.center_pos.y)):
+    if include_debug_for_vis:
         actions.append(
             annotate.sidetext(
-                annotate.format_message(f"{cluster.center_pos} - {cluster.total_amount:4d} - {cluster.n_to_block:1d} - {cluster.current_score:0.5f}"),
+                f"Current Strategy: {LogicGlobals.player.current_strategy}",
             )
         )
-        # for pos in cluster.resource_positions:
-        #     actions.append(annotate.circle(pos.x, pos.y))
-        # for pos in cluster.pos_to_defend:
-        #     actions.append(annotate.x(pos.x, pos.y))
+        actions.append(
+            annotate.sidetext(
+                f"Found {len(LogicGlobals.game_state.map.resource_clusters)} clusters",
+            )
+        )
+        actions.append(
+            annotate.sidetext(
+                "Cluster - N_resource - N_defend - Score",
+            )
+        )
+        for cluster in sorted(LogicGlobals.game_state.map.resource_clusters, key=lambda c: (c.center_pos.x, c.center_pos.y)):
+            actions.append(
+                annotate.sidetext(
+                    annotate.format_message(f"{cluster.center_pos} - {cluster.total_amount:4d} - {cluster.n_to_block:1d} - {cluster.current_score:0.5f}"),
+                )
+            )
+            # for pos in cluster.resource_positions:
+            #     actions.append(annotate.circle(pos.x, pos.y))
+            # for pos in cluster.pos_to_defend:
+            #     actions.append(annotate.x(pos.x, pos.y))
 
-    # actions.append(annotate.sidetext("STRATEGIES"))
-    # for unit in LogicGlobals.player.units:
-    #     actions.append(
-    #         annotate.sidetext(
-    #             f"{unit.id}: {unit.current_strategy}"
-    #         )
-    #     )
-
-    actions.append(annotate.sidetext("GOAL TASKS"))
-
-    for unit in LogicGlobals.player.units:
-        # if unit.current_task is not None:
-        #     __, target = unit.current_task
-        #     if type(target) is Position:
-        #         actions.append(
-        #             annotate.line(unit.pos.x, unit.pos.y, target.x, target.y)
+        # actions.append(annotate.sidetext("STRATEGIES"))
+        # for unit in LogicGlobals.player.units:
+        #     actions.append(
+        #         annotate.sidetext(
+        #             f"{unit.id}: {unit.current_strategy}"
         #         )
-        if unit.task_q:
-            actions.append(
-                annotate.sidetext(
-                    annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
-                )
-            )
-        else:
-            actions.append(
-                annotate.sidetext(
-                    f"{unit.id}: None"
-                )
-            )
+        #     )
 
-    actions.append(annotate.sidetext("CURRENT TASK"))
+        actions.append(annotate.sidetext("GOAL TASKS"))
 
-    for unit in LogicGlobals.player.units:
-        if unit.current_task is None:
-            actions.append(
-                annotate.sidetext(
-                    f"{unit.id}: None"
+        for unit in LogicGlobals.player.units:
+            # if unit.current_task is not None:
+            #     __, target = unit.current_task
+            #     if type(target) is Position:
+            #         actions.append(
+            #             annotate.line(unit.pos.x, unit.pos.y, target.x, target.y)
+            #         )
+            if unit.task_q:
+                actions.append(
+                    annotate.sidetext(
+                        annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
+                    )
                 )
-            )
-        else:
-            actions.append(
-                annotate.sidetext(
-                    annotate.format_message(f"{unit.id}: {unit.current_task[0]} at {unit.current_task[1]} ")
+            else:
+                actions.append(
+                    annotate.sidetext(
+                        f"{unit.id}: None"
+                    )
                 )
-            )
 
-    actions.append(annotate.sidetext("TASK QUEUE"))
+        actions.append(annotate.sidetext("CURRENT TASK"))
 
-    for unit in LogicGlobals.player.units:
-        if unit.task_q:
-            actions.append(
-                annotate.sidetext(
-                    # annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
-                    annotate.format_message(
-                        f"{unit.id}: " +
-                        " - ".join(
-                            [f"{t[0]} to {t[1]}"
-                             if t[0] == 'move' else f"{t[0]} at {t[1]}"
-                             for t in unit.task_q
-                             ]
+        for unit in LogicGlobals.player.units:
+            if unit.current_task is None:
+                actions.append(
+                    annotate.sidetext(
+                        f"{unit.id}: None"
+                    )
+                )
+            else:
+                actions.append(
+                    annotate.sidetext(
+                        annotate.format_message(f"{unit.id}: {unit.current_task[0]} at {unit.current_task[1]} ")
+                    )
+                )
+
+        actions.append(annotate.sidetext("TASK QUEUE"))
+
+        for unit in LogicGlobals.player.units:
+            if unit.task_q:
+                actions.append(
+                    annotate.sidetext(
+                        # annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
+                        annotate.format_message(
+                            f"{unit.id}: " +
+                            " - ".join(
+                                [f"{t[0]} to {t[1]}"
+                                 if t[0] == 'move' else f"{t[0]} at {t[1]}"
+                                 for t in unit.task_q
+                                 ]
+                            )
                         )
                     )
                 )
-            )
-        else:
+            else:
+                actions.append(
+                    annotate.sidetext(
+                        f"{unit.id}: None"
+                    )
+                )
+
+        actions.append(annotate.sidetext("ACTIONS"))
+
+        for uid, action, target in debug_info:
             actions.append(
                 annotate.sidetext(
-                    f"{unit.id}: None"
+                    annotate.format_message(f"{uid}: {action} with target {target}")
                 )
             )
 
-    actions.append(annotate.sidetext("ACTIONS"))
-
-    for uid, action, target in debug_info:
-        actions.append(
-            annotate.sidetext(
-                annotate.format_message(f"{uid}: {action} with target {target}")
-            )
-        )
-
-    actions.append(annotate.text(15, 15, "A"))
+        actions.append(annotate.text(15, 15, "A"))
 
     return actions
 
