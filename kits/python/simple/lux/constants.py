@@ -100,6 +100,28 @@ class LogicGlobals:
     CLUSTER_ID_TO_BUILDERS = {}
     CLUSTER_ID_TO_MANAGERS = {}
 
+    @classmethod
+    def reset(cls):
+        cls.game_state = None
+        cls.player = None
+        cls.opponent = None
+        cls.unlocked_coal = False
+        cls.unlocked_uranium = False
+        cls.cities = None
+        cls.pos_being_built = set()
+        cls.clusters_to_colonize = set()
+        cls.max_resource_cluster_amount = 0
+        cls.TBS_COM = None
+        cls.TBS_citytiles = set()
+        cls.RBS_rtype = None
+        cls.clusters_to_colonize_rbs = {}
+        cls.RBS_citytiles = set()
+        cls.RBS_cluster_carts = {}
+        cls.radius_for_clusters = 0
+        cls.main_city_close_to_coal = None
+        cls.CLUSTER_ID_TO_BUILDERS = {}
+        cls.CLUSTER_ID_TO_MANAGERS = {}
+
 
 UNIT_TYPE_AS_STR = {
     0: "WORKER",

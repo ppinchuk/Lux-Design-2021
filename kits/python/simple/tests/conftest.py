@@ -11,3 +11,4 @@ def initialize_game(request):
     yield
     gm.MAP_CACHE.clear()
     go.UNIT_CACHE.clear()
+    c.LogicGlobals.reset()
