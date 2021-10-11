@@ -589,9 +589,35 @@ class TestPosition:
             avoid_own_cities=True
         ) == 22
 
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_turn_distance_to_at_night(self, initialize_game):
+        for __ in range(25):
+            c.LogicGlobals.game_state.update([], 0)
+        pos = gm.Position(0, 0)
+
         assert pos.turn_distance_to(
-            gm.Position(0, 25),
+            gm.Position(2, 2),
             c.LogicGlobals.game_state.map,
             cooldown=2,
             avoid_own_cities=True
-        ) == 50
+        ) == 7
+
+        for __ in range(5):
+            c.LogicGlobals.game_state.update([], 0)
+        pos = gm.Position(0, 0)
+
+        assert c.LogicGlobals.game_state.turn == 29
+
+        assert pos.turn_distance_to(
+            gm.Position(0, 1),
+            c.LogicGlobals.game_state.map,
+            cooldown=2,
+            avoid_own_cities=True
+        ) == 1
+
+        assert pos.turn_distance_to(
+            gm.Position(2, 2),
+            c.LogicGlobals.game_state.map,
+            cooldown=2,
+            avoid_own_cities=True
+        ) == 13

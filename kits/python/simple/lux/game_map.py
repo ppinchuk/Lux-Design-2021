@@ -7,7 +7,7 @@ from random import shuffle, seed
 if getpass.getuser() == 'Paul':
     seed(69420)
 
-from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes, INFINITE_DISTANCE, GAME_CONSTANTS, ValidActions
+from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes, INFINITE_DISTANCE, GAME_CONSTANTS, ValidActions, is_turn_during_night
 
 
 MAX_DISTANCE_FROM_EDGE = STRATEGY_HYPERPARAMETERS['MAX_DISTANCE_FROM_EDGE']
@@ -17,6 +17,10 @@ class Resource:
     def __init__(self, r_type: str, amount: int):
         self.type = r_type
         self.amount = amount
+
+    @property
+    def fuel_amount(self):
+        return GAME_CONSTANTS['PARAMETERS']['RESOURCE_TO_FUEL_RATE'][self.type.upper()] * self.amount
 
 
 class ResourceCluster:
@@ -438,6 +442,29 @@ class Position:
         return abs(pos.x - self.x) + abs(pos.y - self.y)
 
     def turn_distance_to(self, pos, game_map, cooldown, avoid_own_cities=False, include_target_road=False, debug=False):
+        num_turns = self.__turn_distance_to(
+            pos, game_map, cooldown, avoid_own_cities=avoid_own_cities,
+            include_target_road=include_target_road, debug=debug
+        )
+
+        if num_turns >= INFINITE_DISTANCE or num_turns == 0:
+            return num_turns
+
+        num_turns_to_add = 0
+        num_turns_left = num_turns
+        turn_number = LogicGlobals.game_state.turn
+        turn_number += 1
+        num_turns_left -= 1
+        while num_turns_left > 0:
+            if is_turn_during_night(turn_number):
+                num_turns_to_add += cooldown
+                turn_number += cooldown
+            turn_number += cooldown
+            num_turns_left -= cooldown
+
+        return num_turns + num_turns_to_add
+
+    def __turn_distance_to(self, pos, game_map, cooldown, avoid_own_cities=False, include_target_road=False, debug=False):
         if pos is None or not game_map.is_within_bounds(pos):
             return INFINITE_DISTANCE
         if pos == self:
@@ -451,6 +478,15 @@ class Position:
             else:
                 step = 1
             main_list = [(pos, step)]
+
+            tiles_not_blocked = {self, pos}
+            for p in [self, pos]:
+                cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
+                if cell.citytile is not None:
+                    city_id = cell.citytile.cityid
+                    if city_id in LogicGlobals.player.cities:
+                        tiles_not_blocked = tiles_not_blocked | {c.pos for c in LogicGlobals.player.cities[city_id].citytiles}
+
             while self not in set(x[0] for x in main_list):
                 # if debug:
                 #     print(main_list)
@@ -464,11 +500,11 @@ class Position:
                     if p == self:
                         return step
 
-                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos - {pos}
+                    is_valid_to_move_to = p not in (LogicGlobals.opponent.city_pos - tiles_not_blocked)
                     tiles_blocked_by_units = {u.pos for u in LogicGlobals.player.units if (LogicGlobals.game_state.map.get_cell_by_pos(u.pos).citytile is not None and (u.current_task is not None and u.current_task[0] != ValidActions.MOVE))}
-                    is_valid_to_move_to = is_valid_to_move_to and p not in tiles_blocked_by_units - {pos}
+                    is_valid_to_move_to = is_valid_to_move_to and p not in (tiles_blocked_by_units - tiles_not_blocked)
                     if avoid_own_cities:
-                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos - {pos}
+                        is_valid_to_move_to = is_valid_to_move_to and p not in (LogicGlobals.player.city_pos - tiles_not_blocked)
 
                     if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + max(1, cooldown - game_map.get_cell_by_pos(p).road)))
@@ -490,6 +526,15 @@ class Position:
             i = 0
             step = 0
             main_list = [(pos, step)]
+
+            tiles_not_blocked = {self, pos}
+            for p in [self, pos]:
+                cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
+                if cell.citytile is not None:
+                    city_id = cell.citytile.cityid
+                    if city_id in LogicGlobals.player.cities:
+                        tiles_not_blocked = tiles_not_blocked | {c.pos for c in LogicGlobals.player.cities[city_id].citytiles}
+
             while self not in set(x[0] for x in main_list):
                 # if debug:
                 #     print(main_list)
@@ -503,11 +548,11 @@ class Position:
                     if p == self:
                         return step + 1
 
-                    is_valid_to_move_to = p not in LogicGlobals.opponent.city_pos - {pos}
+                    is_valid_to_move_to = p not in (LogicGlobals.opponent.city_pos - tiles_not_blocked)
                     tiles_blocked_by_units = {u.pos for u in LogicGlobals.player.units if (LogicGlobals.game_state.map.get_cell_by_pos(u.pos).citytile is not None and (u.current_task is not None and u.current_task[0] != ValidActions.MOVE))}
-                    is_valid_to_move_to = is_valid_to_move_to and p not in tiles_blocked_by_units - {pos}
+                    is_valid_to_move_to = is_valid_to_move_to and p not in (tiles_blocked_by_units - tiles_not_blocked)
                     if avoid_own_cities:
-                        is_valid_to_move_to = is_valid_to_move_to and p not in LogicGlobals.player.city_pos - {pos}
+                        is_valid_to_move_to = is_valid_to_move_to and p not in (LogicGlobals.player.city_pos - tiles_not_blocked)
 
                     if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + 1))
