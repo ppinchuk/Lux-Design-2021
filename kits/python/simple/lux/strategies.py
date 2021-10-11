@@ -90,7 +90,11 @@ def starter_strategy(unit, player):
     # )
     city_id_to_manage = min(
         LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids,
-        key=lambda i: LogicGlobals.player.cities[i].fuel - (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] * LogicGlobals.player.cities[i].light_upkeep) + len(LogicGlobals.player.cities[i].managers) * LogicGlobals.game_state.turns_until_next_night * 20
+        key=lambda i:
+        (
+                LogicGlobals.player.cities[i].fuel - (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] * LogicGlobals.player.cities[i].light_upkeep) + len(LogicGlobals.player.cities[i].managers) * LogicGlobals.game_state.turns_until_next_night * 20,
+                min([unit.pos.distance_to(c.pos) for c in LogicGlobals.player.cities[i].citytiles])
+        )
     )
     unit.set_task(action=ValidActions.MANAGE, target=city_id_to_manage)
     LogicGlobals.player.cities[city_id_to_manage].managers.add(unit.id)
