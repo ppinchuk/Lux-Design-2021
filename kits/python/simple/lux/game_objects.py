@@ -263,6 +263,8 @@ class Unit:
 
     @property
     def should_avoid_citytiles(self):
+        if self.current_task and self.current_task[0] == ValidActions.BUILD:
+            return True
         if not self.task_q:
             return False
         return (self.task_q[0][0] == ValidActions.TRANSFER) or (self.task_q[0][0] == ValidActions.MANAGE and self.num_resources > 0) or (LogicGlobals.game_state.turns_until_next_night >= STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER'] and (self.task_q[0][0] == ValidActions.BUILD)) #  or (len(self.task_q) >= 2 and self.task_q[1][0] == ValidActions.BUILD)))
@@ -365,8 +367,8 @@ class Unit:
                 return None, None
 
         elif action == ValidActions.BUILD:
-            closest_resource_pos = self.closest_resource_pos_for_building(target, game_state, player)
             if not self.has_enough_resources_to_build:
+                closest_resource_pos = self.closest_resource_pos_for_building(target, game_state, player)
                 if closest_resource_pos is not None:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
                     return self.propose_action(player, game_state)
@@ -461,7 +463,7 @@ class Unit:
                     self.task_q = deque()
                 else:
                     self.task_q = deque(list(self.task_q)[ind + 1:])
-                    self.current_task = None
+                self.current_task = None
                 self.check_for_task_completion(game_map, player)
             elif action == ValidActions.COLLECT:
                 if game_map.get_cell_by_pos(target).resource is None: #  or self.cargo_space_left() <= 0:
