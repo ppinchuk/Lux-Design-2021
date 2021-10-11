@@ -1,3 +1,4 @@
+import getpass
 from .constants import GAME_CONSTANTS, InputConstants, LogicGlobals
 from .game_map import GameMap, Position
 from .game_objects import Player, Unit, City, CityTile
@@ -32,9 +33,12 @@ class Game:
         )
         self._reset_player_states()
 
+        if getpass.getuser() == 'Paul':
+            messages = sorted(messages)
+
         for update in messages:
             if update == "D_DONE":
-                break
+                continue
             strs = update.split(" ")
             input_identifier = strs[0]
             if input_identifier == InputConstants.RESEARCH_POINTS:

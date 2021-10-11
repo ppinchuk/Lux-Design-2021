@@ -10,7 +10,7 @@ from lux.strategy_utils import compute_tbs_com
 from collections import deque, Counter, UserDict
 from itertools import chain
 from lux import annotate
-import types
+import getpass
 import math
 
 ### Define helper functions
@@ -231,7 +231,7 @@ def unit_action_resolution(player, opponent):
 
     set_unit_strategy(player)
 
-    for unit in sorted(player.units, key=lambda u: u.cargo.wood)[::-1]:
+    for unit in sorted(player.units, key=lambda u: (u.cargo.wood, u.id if getpass.getuser() == 'Paul' else 0))[::-1]:
         if unit.current_task is None:
             unit.get_task_from_strategy(player)
             # unit.set_task_from_strategy(player)
@@ -286,9 +286,8 @@ def unit_action_resolution(player, opponent):
                     continue
                 if LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile is not None and LogicGlobals.game_state.turns_until_next_night <= 1 and LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is None and LogicGlobals.game_state.map.num_adjacent_resources(new_pos, include_center=True, include_wood_that_is_growing=True) == 0:
                     continue
-                pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
-                if not LogicGlobals.game_state.map.is_within_bounds(new_pos) or (
-                        pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5):
+                new_pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
+                if new_pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5:
                     continue
                 pos_to_check[direction] = new_pos
             if not pos_to_check:
@@ -333,7 +332,15 @@ def unit_action_resolution(player, opponent):
                     actions.append(unit.move(direction, logs=debug_info))
                     units_with_movement_resolved.add(unit)
             else:
-                unit, direction = max(units, key=lambda pair: (not pos == pair[0].move_target, pair[0].turns_spent_waiting_to_move))
+                unit, direction = max(
+                    units,
+                    key=lambda pair: (
+                        not pos == pair[0].move_target,
+                        pair[0].turns_spent_waiting_to_move,
+                        pair[0].is_building(),
+                        pair[0].id if getpass.getuser() == 'Paul' else 0
+                    )
+                )
                 unit.turns_spent_waiting_to_move = 0
                 actions.append(unit.move(direction, logs=debug_info))
                 units_with_movement_resolved.add(unit)
