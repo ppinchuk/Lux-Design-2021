@@ -121,6 +121,39 @@ class TestManageAction:
 
         assert actions == ['m u_1 n']
 
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_manage_at_adjacent_resource_at_night(self, initialize_game):
+        for __ in range(71):
+            c.LogicGlobals.game_state.update([], 0)
+
+        c.LogicGlobals.game_state.update(
+            [
+                'r wood 1 2 514',
+                'u 0 0 u_1 1 0 0 0 0 0',
+                'c 0 c_1 200 23',
+                'ct 0 c_1 1 0 0',
+                'ccd 1 1 6',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ u1 __
+        # 1 __ __ __
+        # 2 __ wo __
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MANAGE, 'c_1'),
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert actions == ['m u_1 s']
+
 
 class TestUnitMovement:
     @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
