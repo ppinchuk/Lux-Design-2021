@@ -146,6 +146,10 @@ INFINITE_DISTANCE = 999
 #     return print(f"Turn {LogicGlobals.game_state.turn}", *args, file=sys.stderr)
 
 
+def is_turn_during_night(turn):
+    return GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] - turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"] <= 0
+
+
 if getpass.getuser() == 'Paul':
     print_out = io.StringIO()
     old_print = print
