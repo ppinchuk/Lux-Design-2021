@@ -193,7 +193,7 @@ class Unit:
         return hash(self.id)
 
     def __repr__(self) -> str:
-        return f"Unit({self.type_str} at {self.pos} with cargo {self.cargo})"
+        return f"Unit({self.type_str} ({self.id}) at {self.pos} with cargo {self.cargo})"
 
     def reset(self):
         self.current_task = None
