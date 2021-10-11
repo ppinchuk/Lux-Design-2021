@@ -412,6 +412,8 @@ class GameMap:
             if (cluster.min_loc[0] - 1 <= pos.x <= cluster.max_loc[0] + 1) and (
                     cluster.min_loc[1] - 1 <= pos.y <= cluster.max_loc[1] + 1):
                 return cluster
+            elif pos in cluster.pos_to_defend:
+                return cluster
         return None
 
     def positions(self):
