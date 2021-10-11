@@ -110,6 +110,8 @@ def update_logic_globals(player):
 
     LogicGlobals.unlocked_coal = player.researched_coal()
     LogicGlobals.unlocked_uranium = player.researched_uranium()
+    LogicGlobals.unlock_coal_memory.append(LogicGlobals.unlocked_coal)
+    LogicGlobals.unlock_uranium_memory.append(LogicGlobals.unlocked_uranium)
     LogicGlobals.cities = player.cities
 
     for city_id, city in player.cities.items():
@@ -287,8 +289,16 @@ def unit_action_resolution(player, opponent):
                 if LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile is not None and LogicGlobals.game_state.turns_until_next_night <= 1 and LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is None and LogicGlobals.game_state.map.num_adjacent_resources(new_pos, include_center=True, include_wood_that_is_growing=True) == 0:
                     continue
                 new_pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
-                if new_pos_contains_citytile and unit.should_avoid_citytiles and unit.turns_spent_waiting_to_move < 5:
-                    continue
+                if new_pos_contains_citytile and unit.should_avoid_citytiles:
+                    tiles_not_blocked = {unit.pos, target}
+                    for p in [unit.pos, target]:
+                        cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
+                        if cell.citytile is not None:
+                            city_id = cell.citytile.cityid
+                            if city_id in LogicGlobals.player.cities:
+                                tiles_not_blocked = tiles_not_blocked | {c.pos for c in LogicGlobals.player.cities[city_id].citytiles}
+                    if new_pos not in tiles_not_blocked and unit.turns_spent_waiting_to_move < 5:
+                        continue
                 pos_to_check[direction] = new_pos
             if not pos_to_check:
                 unit.turns_spent_waiting_to_move += 1

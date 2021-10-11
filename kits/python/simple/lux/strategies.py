@@ -55,11 +55,13 @@ def starter_strategy(unit, player):
         return
 
     cluster_has_no_cities = not LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids
+    all_cities_can_survive = all(LogicGlobals.player.cities[c_id].can_survive_until_end_of_game for c_id in LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids)
     # cluster_has_no_builders = not LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
-    cluster_has_too_few_builders = len(LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())) <= STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()))
-    unit_is_a_builder = unit.id in LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
+    num_builders = len(LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()))
+    cluster_has_too_few_builders = num_builders <= max(1, STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set())))
+    # unit_is_a_builder = unit.id in LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
 
-    if cluster_has_no_cities or unit_is_a_builder or cluster_has_too_few_builders:
+    if cluster_has_no_cities or all_cities_can_survive or cluster_has_too_few_builders: #  or unit_is_a_builder:
         # TODO: WHAT IF THERE IS NO MORE WOOD??
         new_city_pos = city_tile_to_build_from_id(
             unit.cluster_to_defend_id,
@@ -69,17 +71,7 @@ def starter_strategy(unit, player):
         if new_city_pos is not None:
             unit.set_task(action=ValidActions.BUILD, target=new_city_pos)
             LogicGlobals.pos_being_built.add(new_city_pos)
-            LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()) | {unit.id}
-            LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
-
-            # LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id].add(unit.id)
-            # LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id].discard(unit.id)
             return
-        # else:
-        #     unit.cluster_to_defend_id = None
-        #     LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
-        #     LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
-        #     starter_strategy(unit, player)
 
     if not LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids:  # can happen when all positions are in the process of being built such that no more builders are needed but also there are no cities to manage
         return
@@ -98,11 +90,6 @@ def starter_strategy(unit, player):
     )
     unit.set_task(action=ValidActions.MANAGE, target=city_id_to_manage)
     LogicGlobals.player.cities[city_id_to_manage].managers.add(unit.id)
-    # LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id].add(unit.id)
-    # LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id].discard(unit.id)
-
-    LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) | {unit.id}
-    LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
 
     if unit.current_task is None:
         print(LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id))

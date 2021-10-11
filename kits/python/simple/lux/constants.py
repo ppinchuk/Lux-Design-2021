@@ -4,6 +4,7 @@ import getpass
 import json
 from os import path
 from functools import partial
+from collections import deque
 dir_path = path.dirname(__file__)
 
 
@@ -85,6 +86,8 @@ class LogicGlobals:
     opponent = None
     unlocked_coal = False
     unlocked_uranium = False
+    unlock_coal_memory = deque(maxlen=2)
+    unlock_uranium_memory = deque(maxlen=2)
     cities = None
     pos_being_built = set()
     clusters_to_colonize = set()
@@ -107,6 +110,8 @@ class LogicGlobals:
         cls.opponent = None
         cls.unlocked_coal = False
         cls.unlocked_uranium = False
+        cls.unlock_coal_memory = deque(maxlen=2)
+        cls.unlock_uranium_memory = deque(maxlen=2)
         cls.cities = None
         cls.pos_being_built = set()
         cls.clusters_to_colonize = set()
@@ -121,6 +126,32 @@ class LogicGlobals:
         cls.main_city_close_to_coal = None
         cls.CLUSTER_ID_TO_BUILDERS = {}
         cls.CLUSTER_ID_TO_MANAGERS = {}
+
+    @classmethod
+    def just_unlocked_new_resource(cls):
+        if cls.game_state is None:
+            raise ValueError("Game state must be set!")
+        if cls.game_state.turn < 2:
+            return False
+        return sum(cls.unlock_coal_memory) == 1 or sum(cls.unlock_uranium_memory) == 1
+
+    @classmethod
+    def add_as_builder(cls, u_id, cluster_id):
+        cls.remove_as_manager(u_id, cluster_id)
+        cls.CLUSTER_ID_TO_BUILDERS[cluster_id] = cls.CLUSTER_ID_TO_BUILDERS.get(cluster_id, set()) | {u_id}
+
+    @classmethod
+    def add_as_manager(cls, u_id, cluster_id):
+        cls.remove_as_builder(u_id, cluster_id)
+        cls.CLUSTER_ID_TO_MANAGERS[cluster_id] = cls.CLUSTER_ID_TO_MANAGERS.get(cluster_id, set()) | {u_id}
+
+    @classmethod
+    def remove_as_builder(cls, u_id, cluster_id):
+        cls.CLUSTER_ID_TO_BUILDERS[cluster_id] = cls.CLUSTER_ID_TO_BUILDERS.get(cluster_id, set()) | {u_id}
+
+    @classmethod
+    def remove_as_manager(cls, u_id, cluster_id):
+        cls.CLUSTER_ID_TO_MANAGERS[cluster_id] = cls.CLUSTER_ID_TO_MANAGERS.get(cluster_id, set()) | {u_id}
 
 
 UNIT_TYPE_AS_STR = {

@@ -75,6 +75,10 @@ class City:
         num_turns += num_night_turns
         return num_turns
 
+    @property
+    def can_survive_until_end_of_game(self):
+        return self.num_turns_can_survive >= (GAME_CONSTANTS["PARAMETERS"]["MAX_DAYS"] - LogicGlobals.game_state.turn + 1)
+
     def update_resource_positions(self, game_map):
         num_resources_for_tile = [
             (
@@ -244,6 +248,12 @@ class Unit:
                 f"but unit is already at max cargo capacity.",
             )
             return
+
+        if action == ValidActions.BUILD:
+            LogicGlobals.add_as_builder(self.id, self.cluster_to_defend_id)
+        elif action == ValidActions.MANAGE:
+            LogicGlobals.add_as_manager(self.id, self.cluster_to_defend_id)
+
         self.current_task = (action, target, *args)
         # if action == ValidActions.MANAGE:
         # print(f"New task was set for unit {self.id} at {self.pos}: {action} with target {target}")
@@ -255,7 +265,7 @@ class Unit:
     def should_avoid_citytiles(self):
         if not self.task_q:
             return False
-        return (self.task_q[0][0] == ValidActions.TRANSFER) or (LogicGlobals.game_state.turns_until_next_night >= STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER'] and (self.task_q[0][0] == ValidActions.BUILD or (len(self.task_q) >= 2 and self.task_q[1][0] == ValidActions.BUILD)))
+        return (self.task_q[0][0] == ValidActions.TRANSFER) or (self.task_q[0][0] == ValidActions.MANAGE and self.num_resources > 0) or (LogicGlobals.game_state.turns_until_next_night >= STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER'] and (self.task_q[0][0] == ValidActions.BUILD)) #  or (len(self.task_q) >= 2 and self.task_q[1][0] == ValidActions.BUILD)))
 
     @property
     def has_enough_resources_to_manage_city(self):
@@ -485,6 +495,10 @@ class Unit:
                     self.previous_pos = deque(maxlen=2)
                 elif self.task_q[0][0] == ValidActions.TRANSFER:
                     self.current_task = None
+                elif LogicGlobals.just_unlocked_new_resource() and len(self.task_q) >= 2 and self.task_q[0][0] == ValidActions.COLLECT and self.task_q[1][0] != ValidActions.BUILD:
+                    self.task_q.popleft()
+                    self.current_task = self.task_q.popleft()
+
         elif action == ValidActions.COLLECT:
             if game_map.get_cell_by_pos(target).resource is None:
                 self.current_task = None
@@ -513,8 +527,11 @@ class Unit:
             self.did_just_transfer = False
             self.current_task = None
         elif action == ValidActions.MANAGE:
-            if target in player.city_ids and player.cities[target].num_turns_can_survive >= GAME_CONSTANTS["PARAMETERS"]["MAX_DAYS"] - LogicGlobals.game_state.turn + GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]:
+            if target in player.city_ids and player.cities[target].can_survive_until_end_of_game:
+                print(f"City {target} can now survive until the end of the game! Manager {self.id} released!")
                 self.current_task = None
+                self.cluster_to_defend = None
+                self.cluster_to_defend_id = None
 
         # if self.current_task is None:
         #     print(f"Unit {self.id} task was set to None during completion check!")
@@ -595,6 +612,10 @@ class Unit:
         )
 
     def can_make_it_to_pos_without_dying(self, target_pos, mult=1.0):
+        if self.pos.is_adjacent(target_pos) and LogicGlobals.game_state.map.num_adjacent_resources(target_pos) > 0:
+            return True
+        elif self.pos.distance_to(target_pos) <= 2 and LogicGlobals.game_state.map.get_cell_by_pos(target_pos).resource is not None:  # TODO: This could also rely on the amount of fuel left in the resource
+            return True
         num_turns_left = self.turn_distance_to(target_pos) - LogicGlobals.game_state.turns_until_next_night
         num_night_turns = 0
         while num_turns_left > GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"]:
