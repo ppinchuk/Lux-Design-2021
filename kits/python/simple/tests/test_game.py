@@ -34,6 +34,29 @@ class TestGame:
         assert c.LogicGlobals.game_state.turns_until_next_night == 29
 
     @pytest.mark.parametrize("initialize_game", [32], indirect=['initialize_game'])
+    def test_correct_turns_until_next_day(self, initialize_game):
+        c.LogicGlobals.game_state.update([], 0)
+        assert c.LogicGlobals.game_state.turns_until_next_day == 40
+        for turn in range(1, 40):
+            c.LogicGlobals.game_state.update([], 0)
+            assert c.LogicGlobals.game_state.turns_until_next_day == 40 - turn
+
+    @pytest.mark.parametrize("initialize_game", [32], indirect=['initialize_game'])
+    def test_correct_turns_until_next_night(self, initialize_game):
+        c.LogicGlobals.game_state.update([], 0)
+        assert c.LogicGlobals.game_state.turns_until_next_night == 30
+        for turn in range(1, 30):
+            c.LogicGlobals.game_state.update([], 0)
+            assert c.LogicGlobals.game_state.turns_until_next_night == 30 - turn
+
+        for __ in range(10):
+            c.LogicGlobals.game_state.update([], 0)
+            assert c.LogicGlobals.game_state.turns_until_next_night == 0
+
+        c.LogicGlobals.game_state.update([], 0)
+        assert c.LogicGlobals.game_state.turns_until_next_night == 30
+
+    @pytest.mark.parametrize("initialize_game", [32], indirect=['initialize_game'])
     def test_correct_turn_state(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [

@@ -370,7 +370,7 @@ class Unit:
                     return self.propose_action(player, game_state)
                 else:
                     closest_city_pos = target.find_closest_city_tile(player, game_state.map)
-                    if closest_city_pos is not None and self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"] - (LogicGlobals.game_state.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]):
+                    if closest_city_pos is not None and self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < LogicGlobals.game_state.turns_until_next_day:
                         self.push_task((ValidActions.MOVE, closest_city_pos))
                         return self.propose_action(player, game_state)
                     else:

@@ -8,12 +8,14 @@ class Game:
     def __init__(self, map_id, size_str):
         self.id = int(map_id)
         self.turn = -1
-        self.turns_until_next_night = 30
+        self.turns_until_next_night = GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"]
+        self.turns_until_next_day = GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]
         # get some other necessary initial input
         mapInfo = size_str.split(" ")
         self.map_width = int(mapInfo[0])
         self.map_height = int(mapInfo[1])
         self.players = [Player(0), Player(1)]
+        self.map = None
 
     def _end_turn(self):
         print("D_FINISH")
@@ -31,6 +33,7 @@ class Game:
         self.turns_until_next_night = max(0,
             GAME_CONSTANTS["PARAMETERS"]["DAY_LENGTH"] - self.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]
         )
+        self.turns_until_next_day = GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"] - self.turn % GAME_CONSTANTS["PARAMETERS"]["CYCLE_LENGTH"]
         self._reset_player_states()
 
         if getpass.getuser() == 'Paul':
