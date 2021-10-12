@@ -545,3 +545,318 @@ class TestUnitCollisions:
         assert 'm u_3 e' in actions
         for unit in c.LogicGlobals.player.units:
             assert unit.turns_spent_waiting_to_move == 0
+
+            """
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'rp 0 0' <- research points (player id, num)
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'rp 1 0'
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'r coal 0 3 419' <- resource (type, x, y, amount)
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'r wood 0 9 314'
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'r uranium 6 10 331'
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'u 0 0 u_1 13 7 0 0 0 0'    <- unit (type, team, id, x, y, cooldown, wood, coal, uranium)
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'u 0 1 u_2 13 16 0 0 0 0'
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'c 0 c_1 0 23'  <- city (team, id, fuel, lightupkeep)
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'c 1 c_2 0 23'
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ct 0 c_1 13 7 0'   <- citytile (team, id, x, y, cooldown)
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ct 1 c_2 13 16 0'
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ccd 13 7 6'   <- road (x, y, level)
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'ccd 13 16 6'
+            [WARN] (match_NF4VsaRK1hf9) - Agent 0 sent malformed command:  'D_DONE'
+            """
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_collision_snake1(self, initialize_game):
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 0 1 0 0 0 0',
+                'u 0 0 u_2 1 1 0 0 0 0',
+                'u 0 0 u_3 1 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'ct 1 c_1 0 2 0',
+                'c 1 c_2 0 23',
+                'ct 1 c_2 1 0 0',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ c2 __
+        # 1 u1 u2 __
+        # 2 c1 u3 __
+
+        c.LogicGlobals.player.current_strategy = c.StrategyTypes.STARTER
+
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(1, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 0)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(0, 1))
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2, actions
+        assert 'm u_1 e' in actions
+        assert 'm u_2 w' in actions
+
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 1 1 0 0 0 0',
+                'u 0 0 u_2 0 1 3 0 0 0',
+                'u 0 0 u_3 1 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'ct 1 c_1 0 2 0',
+                'c 1 c_2 0 23',
+                'ct 1 c_2 1 0 0',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ c2 __
+        # 1 u2 u1 __
+        # 2 c1 u3 __
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(1, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 1)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(1, 1))
+        }
+        lslsdldl = c.LogicGlobals.player
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2, actions
+        assert 'm u_1 s' in actions
+        assert 'm u_3 n' in actions
+
+    @pytest.mark.parametrize("initialize_game", [3], indirect=['initialize_game'])
+    def test_collision_snake2(self, initialize_game):
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 0 1 0 0 0 0',
+                'u 0 0 u_2 1 1 0 0 0 0',
+                'u 0 0 u_3 1 2 0 0 0 0',
+                'u 0 0 u_4 2 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 1 c_1 0 2 0',
+                'ct 1 c_2 2 1 0',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 u1 u2 c2
+        # 2 c1 u3 u4
+
+        c.LogicGlobals.player.current_strategy = c.StrategyTypes.STARTER
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 1)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(1, 1)),
+            'u_4': (c.ValidActions.MOVE, gm.Position(1, 2))
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2, actions
+        assert 'm u_1 e' in actions
+        assert 'm u_2 w' in actions
+
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 1 1 0 0 0 0',
+                'u 0 0 u_2 0 1 0 0 0 0',
+                'u 0 0 u_3 1 2 0 0 0 0',
+                'u 0 0 u_4 2 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 1 c_1 0 2 0',
+                'ct 1 c_2 2 1 0',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 u2 u1 c2
+        # 2 c1 u3 u4
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 1)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(1, 1)),
+            'u_4': (c.ValidActions.MOVE, gm.Position(1, 2))
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2, actions
+        assert 'm u_1 s' in actions
+        assert 'm u_3 n' in actions
+
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 1 2 0 0 0 0',
+                'u 0 0 u_2 0 1 0 0 0 0',
+                'u 0 0 u_3 1 1 0 0 0 0',
+                'u 0 0 u_4 2 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 1 c_1 0 2 0',
+                'ct 1 c_2 2 1 0',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 u2 u3 c2
+        # 2 c1 u1 u4
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 1)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(1, 1)),
+            'u_4': (c.ValidActions.MOVE, gm.Position(1, 2))
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2
+        assert 'm u_1 e' in actions
+        assert 'm u_4 w' in actions
+
+    @pytest.mark.parametrize("initialize_game", [4], indirect=['initialize_game'])
+    def test_collision_snake2(self, initialize_game):
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 0 1 0 0 0 0',
+                'u 0 0 u_2 1 1 0 0 0 0',
+                'u 0 0 u_3 1 2 0 0 0 0',
+                'u 0 0 u_4 2 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 1 c_1 0 2 0',
+                'ct 1 c_2 2 1 0',
+            ], 0
+        )
+
+        #    0  1  2  3
+        # 0 __ __ __ __
+        # 1 u5 c1 __ __
+        # 2 u1 u2 c2 __
+        # 3 u6 u3 u4 c3
+
+        c.LogicGlobals.player.current_strategy = c.StrategyTypes.STARTER
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 1)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(1, 1)),
+            'u_4': (c.ValidActions.MOVE, gm.Position(1, 2))
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2, actions
+        assert 'm u_1 e' in actions
+        assert 'm u_2 w' in actions
+
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 1 1 0 0 0 0',
+                'u 0 0 u_2 0 1 0 0 0 0',
+                'u 0 0 u_3 1 2 0 0 0 0',
+                'u 0 0 u_4 2 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 1 c_1 0 2 0',
+                'ct 1 c_2 2 1 0',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 u2 u1 c2
+        # 2 c1 u3 u4
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 1)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(1, 1)),
+            'u_4': (c.ValidActions.MOVE, gm.Position(1, 2))
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2, actions
+        assert 'm u_1 s' in actions
+        assert 'm u_3 n' in actions
+
+        c.LogicGlobals.game_state.update(
+            [
+                'u 0 0 u_1 1 2 0 0 0 0',
+                'u 0 0 u_2 0 1 0 0 0 0',
+                'u 0 0 u_3 1 1 0 0 0 0',
+                'u 0 0 u_4 2 2 0 0 0 0',
+                'c 1 c_1 0 23',
+                'c 1 c_2 0 23',
+                'ct 1 c_1 0 2 0',
+                'ct 1 c_2 2 1 0',
+            ], 0
+        )
+
+        #    0  1  2
+        # 0 __ __ __
+        # 1 u2 u3 c2
+        # 2 c1 u1 u4
+
+        unit_actions_this_turn = {
+            'u_1': (c.ValidActions.MOVE, gm.Position(2, 2)),
+            'u_2': (c.ValidActions.MOVE, gm.Position(0, 1)),
+            'u_3': (c.ValidActions.MOVE, gm.Position(1, 1)),
+            'u_4': (c.ValidActions.MOVE, gm.Position(1, 2))
+        }
+
+        for unit in c.LogicGlobals.player.units:
+            unit.set_task(*unit_actions_this_turn[unit.id])
+
+        actions, debug = agent.unit_action_resolution(
+            c.LogicGlobals.player, c.LogicGlobals.opponent
+        )
+
+        assert len(actions) == 2
+        assert 'm u_1 e' in actions
+        assert 'm u_4 w' in actions
