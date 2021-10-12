@@ -263,8 +263,11 @@ class Unit:
 
     @property
     def should_avoid_citytiles(self):
-        if self.current_task and self.current_task[0] == ValidActions.BUILD:
-            return True
+        if self.current_task:
+            if self.current_task[0] == ValidActions.BUILD:
+                return True
+            if self.current_task[0] == ValidActions.MOVE and self.num_resources > 0 and any([t[0] == ValidActions.BUILD for t in list(self.task_q)[0:2]]):
+                return True
         if not self.task_q:
             return False
         return (self.task_q[0][0] == ValidActions.TRANSFER) or (self.task_q[0][0] == ValidActions.MANAGE and self.num_resources > 0) or (LogicGlobals.game_state.turns_until_next_night >= STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER'] and (self.task_q[0][0] == ValidActions.BUILD)) #  or (len(self.task_q) >= 2 and self.task_q[1][0] == ValidActions.BUILD)))
@@ -466,7 +469,7 @@ class Unit:
                 self.current_task = None
                 self.check_for_task_completion(game_map, player)
             elif action == ValidActions.COLLECT:
-                if game_map.get_cell_by_pos(target).resource is None: #  or self.cargo_space_left() <= 0:
+                if game_map.is_within_bounds(target) and game_map.get_cell_by_pos(target).resource is None: #  or self.cargo_space_left() <= 0:
                     if ind >= len(self.task_q) - 1:
                         self.task_q = deque()
                     else:
