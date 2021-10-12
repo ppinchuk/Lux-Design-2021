@@ -314,10 +314,10 @@ class Unit:
 
         elif action == ValidActions.MANAGE:
             if target in player.cities:
-                if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, include_wood_that_is_growing=False) > 0 for p in player.cities[target].resource_positions):  # TODO: This wood check may make the manage role too difficult
+                if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, include_wood_that_is_growing=False, check_for_unlock=True) > 0 for p in player.cities[target].resource_positions):  # TODO: This wood check may make the manage role too difficult
                     print(f"Unit {self.id} can manage at resource positions :", player.cities[target].resource_positions)
                     for target_pos in player.cities[target].resource_positions:
-                        if game_state.map.num_adjacent_resources(target_pos, include_wood_that_is_growing=False) > 0:  # TODO: This wood check may make the manage role too difficult
+                        if target_pos not in LogicGlobals.player.unit_pos and game_state.map.num_adjacent_resources(target_pos, include_wood_that_is_growing=False, check_for_unlock=True) > 0:  # TODO: This wood check may make the manage role too difficult
                             self.push_task((ValidActions.MOVE, target_pos))
                             return self.propose_action(player, game_state)
             else:

@@ -22,6 +22,16 @@ class Resource:
     def fuel_amount(self):
         return GAME_CONSTANTS['PARAMETERS']['RESOURCE_TO_FUEL_RATE'][self.type.upper()] * self.amount
 
+    @property
+    def can_harvest(self):
+        if self.type.upper() == ResourceTypes.WOOD:
+            return  True
+        if self.type.upper() == ResourceTypes.COAL and LogicGlobals.player.researched_coal():
+            return True
+        if self.type.upper() == ResourceTypes.URANIUM and LogicGlobals.player.researched_uranium():
+            return True
+        return False
+
 
 class ResourceCluster:
     def __init__(self, r_type: str, positions):
@@ -340,9 +350,9 @@ class GameMap:
         cell = self.get_cell(x, y)
         cell.resource = Resource(r_type, amount)
 
-    def num_adjacent_resources(self, pos, include_center=True, include_wood_that_is_growing=True):
+    def num_adjacent_resources(self, pos, include_center=True, include_wood_that_is_growing=True, check_for_unlock=False):
         return sum(
-            self.get_cell_by_pos(p).has_resource(include_wood_that_is_growing=include_wood_that_is_growing)
+            self.get_cell_by_pos(p).has_resource(include_wood_that_is_growing=include_wood_that_is_growing) and (self.get_cell_by_pos(p).resource.can_harvest if check_for_unlock else True)
             for p in pos.adjacent_positions(include_center=include_center)
             if self.is_within_bounds(p)
         )
