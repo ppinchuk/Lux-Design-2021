@@ -394,7 +394,7 @@ class Unit:
                     cluster = LogicGlobals.game_state.map.get_cluster_by_id(self.cluster_to_defend_id)
                     if cluster is not None and cluster.city_ids:
                         closest_city_pos = min(
-                            [ct.pos for c_id in cluster.city_ids for c in LogicGlobals.player.cities[c_id] for ct in c.citytiles],
+                            [ct.pos for c_id in cluster.city_ids for ct in LogicGlobals.player.cities[c_id].citytiles if c_id in LogicGlobals.player.cities],
                             key=self.pos.distance_to
                         )
                         if self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < LogicGlobals.game_state.turns_until_next_day:
