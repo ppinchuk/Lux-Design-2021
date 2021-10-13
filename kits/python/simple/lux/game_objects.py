@@ -384,10 +384,19 @@ class Unit:
                     self.push_task((ValidActions.MOVE, target))
                     return self.propose_action(player, game_state)
                 else:
-                    closest_city_pos = target.find_closest_city_tile(player, game_state.map)
-                    if closest_city_pos is not None and self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < LogicGlobals.game_state.turns_until_next_day:
-                        self.push_task((ValidActions.MOVE, closest_city_pos))
-                        return self.propose_action(player, game_state)
+                    cluster = LogicGlobals.game_state.map.get_cluster_by_id(self.cluster_to_defend_id)
+                    if cluster is not None and cluster.city_ids:
+                        closest_city_pos = min(
+                            [ct.pos for c_id in cluster.city_ids for c in LogicGlobals.player.cities[c_id] for ct in c.citytiles],
+                            key=self.pos.distance_to
+                        )
+                        if self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < LogicGlobals.game_state.turns_until_next_day:
+                            self.push_task((ValidActions.MOVE, closest_city_pos))
+                            return self.propose_action(player, game_state)
+                    # closest_city_pos = target.find_closest_city_tile(player, game_state.map)
+                    # if closest_city_pos is not None and self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < LogicGlobals.game_state.turns_until_next_day:
+                    #     self.push_task((ValidActions.MOVE, closest_city_pos))
+                    #     return self.propose_action(player, game_state)
                     else:
                         return None, None  # TODO: What should we do if worker is too far away from resource to get there before night time and there is no city to dump resources into?
             if game_state.turns_until_next_night < STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER']:
