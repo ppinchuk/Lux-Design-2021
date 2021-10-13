@@ -239,6 +239,48 @@ def unit_action_resolution(player, opponent):
             # unit.set_task_from_strategy(player)
             # set_unit_task(unit, player)
 
+    for cluster_id, builders in LogicGlobals.CLUSTER_ID_TO_BUILDERS.items():
+        pos_should_be_built = set()
+        cluster_to_defend = LogicGlobals.game_state.map.get_cluster_by_id(cluster_id)
+        if cluster_to_defend is None:
+            continue
+        for pos in LogicGlobals.game_state.map.get_cluster_by_id(cluster_id).pos_to_defend:
+            if len(pos_should_be_built) >= len(builders):
+                break
+            cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
+            if cell.is_empty():
+                pos_should_be_built.add(cell.pos)
+
+        # if len(pos_should_be_built) < len(builders):
+        #     continue
+
+        units_that_should_switch_builds = set()
+
+        for unit_id in builders:
+            unit = LogicGlobals.player.get_unit_by_id(unit_id)
+            if unit is None:
+                continue
+            current_build_pos = None
+            if unit.current_task and unit.current_task[0] == ValidActions.BUILD:
+                current_build_pos = unit.current_task[1]
+            else:
+                for task in unit.task_q:
+                    if task[0] == ValidActions.BUILD:
+                        current_build_pos = task[1]
+                        break
+            if current_build_pos is None:
+                print(f"BUILDER {unit.id} assigned to cluster {unit.cluster_to_defend_id} has no build task!!!")
+            else:
+                if current_build_pos in pos_should_be_built:
+                    pos_should_be_built.discard(current_build_pos)
+                else:
+                    units_that_should_switch_builds.add(unit)
+
+        for unit in units_that_should_switch_builds:
+            if pos_should_be_built:
+                unit.remove_next_build_action()
+                unit.set_task(ValidActions.BUILD, pos_should_be_built.pop())
+
     # for unit in player.units:
     #     action, target = unit.propose_action(player, LogicGlobals.game_state)
     #     log(f"Turn {LogicGlobals.game_state.turn}: Unit {unit.id} at {unit.pos} proposed action {action} with target {target}")

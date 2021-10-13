@@ -28,6 +28,12 @@ class Player:
         self.unit_pos = set()
         self.unit_ids = set()
 
+    def get_unit_by_id(self, u_id):
+        for u in self.units:
+            if u.id == u_id:
+                return u
+        return None
+
     def researched_coal(self) -> bool:
         return self.research_points >= GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]
 
@@ -250,6 +256,7 @@ class Unit:
             return
 
         if action == ValidActions.BUILD:
+            LogicGlobals.pos_being_built.add(target)
             LogicGlobals.add_as_builder(self.id, self.cluster_to_defend_id)
         elif action == ValidActions.MANAGE:
             LogicGlobals.add_as_manager(self.id, self.cluster_to_defend_id)
@@ -437,6 +444,22 @@ class Unit:
         self.save_state()
         return self.current_task
 
+    def remove_next_build_action(self):
+        if self.current_task[0] == ValidActions.BUILD:
+            self.load_next_task()
+            return
+
+        for ind, (action, target, *extra) in enumerate(self.task_q):
+            if action == ValidActions.BUILD:
+                LogicGlobals.pos_being_built.discard(target)
+                print(f"REMOVING BUILD ACTION for UNIT: {self.id}")
+                if ind >= len(self.task_q) - 1:
+                    self.task_q = deque()
+                else:
+                    self.task_q = deque(list(self.task_q)[ind + 1:])
+                self.load_next_task()
+                break
+
     def check_for_task_completion(self, game_map, player):
         # if self.current_task is None:
         #     return
@@ -470,7 +493,8 @@ class Unit:
         for ind, (action, target, *extra) in enumerate(self.task_q):
             # if player.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
             if self.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
-                print(f"REMOVING BUILD ACTION for UNIT: {self.id}")
+                print(f"REMOVING BUILD ACTION for UNIT: {self.id} because cluster does not exist")
+                LogicGlobals.pos_being_built.discard(target)
                 if ind >= len(self.task_q) - 1:
                     self.task_q = deque()
                 else:
@@ -510,8 +534,8 @@ class Unit:
                 elif self.task_q[0][0] == ValidActions.TRANSFER:
                     self.current_task = None
                 elif LogicGlobals.just_unlocked_new_resource() and len(self.task_q) >= 2 and self.task_q[0][0] == ValidActions.COLLECT and self.task_q[1][0] != ValidActions.BUILD:
-                    self.task_q.popleft()
-                    self.current_task = self.task_q.popleft()
+                    self.load_next_task()
+                    self.load_next_task()
 
         elif action == ValidActions.COLLECT:
             if game_map.get_cell_by_pos(target).resource is None:
@@ -550,9 +574,13 @@ class Unit:
         # if self.current_task is None:
         #     print(f"Unit {self.id} task was set to None during completion check!")
         # print(f"Unit {self.id} task after completion check:", self.current_task)
-        if self.current_task is None and self.task_q:
-            self.current_task = self.task_q.popleft()
-            self.check_for_task_completion(game_map, player)
+        if self.current_task is None:
+            self.load_next_task()
+            if self.current_task is not None:
+                self.check_for_task_completion(game_map, player)
+        # if self.current_task is None and self.task_q:
+        #     self.current_task = self.task_q.popleft()
+        #     self.check_for_task_completion(game_map, player)
 
         self.save_state()
 
