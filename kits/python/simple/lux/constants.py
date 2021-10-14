@@ -147,11 +147,11 @@ class LogicGlobals:
 
     @classmethod
     def remove_as_builder(cls, u_id, cluster_id):
-        cls.CLUSTER_ID_TO_BUILDERS[cluster_id] = cls.CLUSTER_ID_TO_BUILDERS.get(cluster_id, set()) | {u_id}
+        cls.CLUSTER_ID_TO_BUILDERS[cluster_id] = cls.CLUSTER_ID_TO_BUILDERS.get(cluster_id, set()) - {u_id}
 
     @classmethod
     def remove_as_manager(cls, u_id, cluster_id):
-        cls.CLUSTER_ID_TO_MANAGERS[cluster_id] = cls.CLUSTER_ID_TO_MANAGERS.get(cluster_id, set()) | {u_id}
+        cls.CLUSTER_ID_TO_MANAGERS[cluster_id] = cls.CLUSTER_ID_TO_MANAGERS.get(cluster_id, set()) - {u_id}
 
 
 UNIT_TYPE_AS_STR = {
