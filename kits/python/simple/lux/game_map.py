@@ -2,10 +2,8 @@ from typing import List
 import math
 import sys
 from functools import partial
+from random import shuffle
 import getpass
-from random import shuffle, seed
-if getpass.getuser() == 'Paul':
-    seed(69420)
 
 from .constants import ALL_DIRECTIONS, print, log, STRATEGY_HYPERPARAMETERS, ResourceTypes, Directions, LogicGlobals, StrategyTypes, INFINITE_DISTANCE, GAME_CONSTANTS, ValidActions, is_turn_during_night
 
@@ -278,7 +276,7 @@ class ResourceCluster:
             if opponent_positions:
                 closest_opponent_pos = min(
                     opponent_positions,
-                    key=self.center_pos.distance_to
+                    key=lambda p: (self.center_pos.distance_to(p), p.x, p.y)
                 )
             else:
                 closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
@@ -286,7 +284,7 @@ class ResourceCluster:
             closest_opponent_pos = self.sort_position
 
         self.pos_to_defend = sorted(
-            self.pos_to_defend, key=closest_opponent_pos.distance_to
+            self.pos_to_defend, key=lambda p: (closest_opponent_pos.distance_to(p), p.x, p.y)
         )
 
         self.city_ids = set()
@@ -558,7 +556,7 @@ class Position:
 
                     if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + max(1, cooldown - game_map.get_cell_by_pos(p).road)))
-                main_list = sorted(main_list, key=lambda x: x[1])
+                main_list = sorted(main_list, key=lambda x: (x[1], x[0].x, x[0].y))
                 i += 1
             for x in main_list:
                 if x[0] == self:
@@ -715,9 +713,9 @@ class Position:
         positions = [p for r in resources_to_consider for p in self._closest_resource_pos[r]]
         if positions:
             if tie_breaker_func is None:
-                return min(positions, key=self.distance_to)
+                return min(positions, key=lambda p: (self.distance_to(p), p.x, p.y))
             else:
-                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p)))
+                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p), p.x, p.y))
         else:
             return None
 
@@ -737,9 +735,9 @@ class Position:
         positions = [p for r in resources_to_consider for p in closest_resource_pos[r]]
         if positions:
             if tie_breaker_func is None:
-                return min(positions, key=self.distance_to)
+                return min(positions, key=lambda p: (self.distance_to(p), p.x, p.y))
             else:
-                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p)))
+                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p), p.x, p.y))
         else:
             return None
 
@@ -882,7 +880,7 @@ class Position:
         if tolerance is not None:
             dists = {k: v for k, v in dists.items() if v[0] <= tolerance + min(v[0] for v in dists.values())}
 
-        return sorted(dists, key=dists.get)
+        return sorted(dists, key=lambda x: (dists.get(x), x))
 
     def direction_to(self, target_pos: 'Position', pos_to_check=None, do_shuffle=True) -> Directions:
         """ Return closest position to target_pos from this position
@@ -915,8 +913,8 @@ class Position:
             }
 
         dir_pos = list(pos_to_check.items())
-        if do_shuffle:
+        if do_shuffle and getpass.getuser() != 'Paul':
             shuffle(dir_pos)
 
         dists = {d: target_pos.distance_to(p) for d, p in dir_pos}
-        return min(dists, key=dists.get)
+        return min(dists, key=lambda x: (dists.get(x), x))

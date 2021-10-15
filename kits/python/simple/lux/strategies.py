@@ -1,4 +1,5 @@
 import sys
+import getpass
 from .constants import StrategyTypes, LogicGlobals, ValidActions, STRATEGY_HYPERPARAMETERS, ResourceTypes, print, GAME_CONSTANTS
 from .game_map import Position
 from .strategy_utils import reset_unit_tasks, city_tile_to_build, compute_tbs_com, city_tile_to_build_tbs, set_rbs_rtype, find_clusters_to_colonize_rbs, city_tile_to_build_from_id, set_unit_cluster_to_defend_id
@@ -88,7 +89,8 @@ def starter_strategy(unit, player):
         (
             LogicGlobals.player.cities[i].can_survive_until_end_of_game,
             LogicGlobals.player.cities[i].fuel - (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] * LogicGlobals.player.cities[i].light_upkeep) + len(LogicGlobals.player.cities[i].managers) * LogicGlobals.game_state.turns_until_next_night * 20,
-            min([unit.pos.distance_to(c.pos) for c in LogicGlobals.player.cities[i].citytiles])
+            min([unit.pos.distance_to(c.pos) for c in LogicGlobals.player.cities[i].citytiles]),
+            i if getpass.getuser() == 'Paul' else 0
         )
     )
     unit.set_task(action=ValidActions.MANAGE, target=city_id_to_manage)
@@ -186,7 +188,7 @@ def starter_strategy_old(unit, player):
                 # )
                 unit.cluster_to_defend = min(
                     LogicGlobals.clusters_to_colonize,
-                    key=lambda c: unit.pos.distance_to(c.center_pos)
+                    key=lambda c: (unit.pos.distance_to(c.center_pos), c.center_pos.x, c.center_pos.y)
                 )
                 closest_cluster.n_workers_sent_to_colonize += 1
             else:
@@ -401,7 +403,7 @@ def research_based_strategy(unit, player):
                 LogicGlobals.game_state.map.get_cluster_by_id(i) for i in LogicGlobals.clusters_to_colonize_rbs
                 if len(LogicGlobals.clusters_to_colonize_rbs[i]) < len(LogicGlobals.player.unit_ids) // len(LogicGlobals.clusters_to_colonize_rbs) + 1
             ],
-            key=lambda c: unit.pos.pathing_distance_to(c.center_pos, LogicGlobals.game_state.map)
+            key=lambda c: (unit.pos.pathing_distance_to(c.center_pos, LogicGlobals.game_state.map), c.center_pos.x, c.center_pos.y)
         )
         if possible_clusters_to_defend:  # TODO: what if "possible_clusters_to_defend" is empty?
             unit.cluster_to_defend_id = possible_clusters_to_defend[0].id
@@ -415,7 +417,7 @@ def research_based_strategy(unit, player):
     cluster_to_defend = LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id)
     cities_to_manage = sorted(
         [LogicGlobals.player.cities[id_] for id_ in cluster_to_defend.city_ids],
-        key=lambda c: len(c.managers)
+        key=lambda c: (len(c.managers), c.cityid if getpass.getuser() == 'Paul' else 0)
     )
 
     print(f"Cluster {unit.cluster_to_defend_id} city_ids:", cluster_to_defend.city_ids)

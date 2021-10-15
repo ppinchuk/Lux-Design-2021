@@ -1,7 +1,6 @@
 from lux.game import Game
 from lux.game_map import Position
 import lux.game_objects as go
-import random
 import sys
 # print("SOME RANDOM NUMBER:", random.random(), file=sys.stderr)
 from lux.constants import ValidActions, log, print, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
@@ -10,8 +9,11 @@ from lux.strategy_utils import compute_tbs_com
 from collections import deque, Counter, UserDict
 from itertools import chain
 from lux import annotate
+from random import seed
 import getpass
 import math
+
+seed(69420)
 
 ### Define helper functions
 
@@ -75,7 +77,7 @@ def set_unit_strategy(player):
                 return
             else:
                 closest_units = sorted(
-                    [u for u in player.units if u.current_strategy == StrategyTypes.STARTER], key=lambda u: u.pos.distance_to(LogicGlobals.TBS_COM)
+                    [u for u in player.units if u.current_strategy == StrategyTypes.STARTER], key=lambda u: (u.pos.distance_to(LogicGlobals.TBS_COM),u.id if getpass.getuser() == 'Paul' else 0)
                 )
                 # print(closest_units)
                 for unit in closest_units[:len(NEW_STRATEGY_UNITS) - num_new_strat]:

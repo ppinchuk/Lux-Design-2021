@@ -1,6 +1,7 @@
 import sys
 import statistics
 from itertools import chain
+import getpass
 from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print, GAME_CONSTANTS
 from .game_map import Position
 
@@ -50,7 +51,7 @@ def set_unit_cluster_to_defend_id(unit, player):
             if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
                 unit.cluster_to_defend_id = min(
                     LogicGlobals.clusters_to_colonize,
-                    key=lambda c: unit.pos.distance_to(c.center_pos)  # NOTE: Currently does NOT prefer unlocked resources
+                    key=lambda c: (unit.pos.distance_to(c.center_pos), c.id if getpass.getuser() == 'Paul' else 0)  # NOTE: Currently does NOT prefer unlocked resources
                 ).id
                 closest_cluster.n_workers_sent_to_colonize += 1
                 print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
@@ -185,7 +186,7 @@ def find_clusters_to_colonize_rbs():
         unit_med_pos = med_position([u.pos for u in LogicGlobals.player.units])
         clusters_to_colonize = sorted(
             clusters_to_colonize,
-            key=lambda c: (c.total_amount * (GAME_CONSTANTS["PARAMETERS"]["MAX_DAYS"] - LogicGlobals.game_state.turn) / (c.center_pos.distance_to(unit_med_pos) * 2.5), -c.center_pos.distance_to(unit_med_pos))
+            key=lambda c: (c.total_amount * (GAME_CONSTANTS["PARAMETERS"]["MAX_DAYS"] - LogicGlobals.game_state.turn) / (c.center_pos.distance_to(unit_med_pos) * 2.5), -c.center_pos.distance_to(unit_med_pos), c.id if getpass.getuser() == 'Paul' else 0)
         )[:-1-max_num_clusters:-1]
 
     for c in clusters_to_colonize:
@@ -198,6 +199,6 @@ def find_clusters_to_colonize_rbs():
             key=lambda c: (sum(
                 p in LogicGlobals.opponent.city_pos
                 for p in c.pos_to_defend
-            ), -c.center_pos.distance_to(unit_med_pos))
+            ), -c.center_pos.distance_to(unit_med_pos), c.id if getpass.getuser() == 'Paul' else 0)
         )[0]
         LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id] = set()
