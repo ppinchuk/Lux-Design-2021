@@ -325,7 +325,7 @@ class Unit:
         elif action == ValidActions.MANAGE:
             if target in player.cities:
                 if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, include_wood_that_is_growing=False, check_for_unlock=True) > 0 for p in player.cities[target].resource_positions):  # TODO: This wood check may make the manage role too difficult
-                    print(f"Unit {self.id} can manage at resource positions :", player.cities[target].resource_positions)
+                    # print(f"Unit {self.id} can manage at resource positions :", player.cities[target].resource_positions)
                     for target_pos in player.cities[target].resource_positions:
                         if target_pos not in LogicGlobals.player.unit_pos and game_state.map.num_adjacent_resources(target_pos, include_wood_that_is_growing=False, check_for_unlock=True) > 0:  # TODO: This wood check may make the manage role too difficult
                             self.push_task((ValidActions.MOVE, target_pos))
@@ -340,11 +340,11 @@ class Unit:
             )
 
             if not self.has_enough_resources_to_manage_city:
-                print(f"Manager {self.id} has to go find resources.")
+                # print(f"Manager {self.id} has to go find resources.")
                 target_pos = self.pos.find_closest_resource(
                     player, game_state.map
                 )
-                print(f"Found closest resource to Manager {self.id}:", target_pos)
+                # print(f"Found closest resource to Manager {self.id}:", target_pos)
                 if target_pos is not None:
                     if self.can_make_it_back_to_city_before_it_dies(target, closest_citytile_to_unit=closest_citytile_to_unit, mult=1.1):
                         if target_pos != self.pos and self.can_make_it_to_pos_without_dying(target_pos, mult=1.1): #  self.can_make_it_before_nightfall(target_pos, game_state, mult=1.0):
@@ -352,8 +352,7 @@ class Unit:
                             return self.propose_action(player, game_state)
                         else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
                             distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
-                            print(
-                                f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
+                            # print(f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
                             return None, None
                 else:
                     print(f"Manager {self.id} wants to go find resources but there are none left!")
@@ -452,7 +451,7 @@ class Unit:
         for ind, (action, target, *extra) in enumerate(self.task_q):
             if action == ValidActions.BUILD:
                 LogicGlobals.pos_being_built.discard(target)
-                print(f"REMOVING BUILD ACTION for UNIT: {self.id}")
+                # print(f"REMOVING BUILD ACTION for UNIT: {self.id}")
                 if ind >= len(self.task_q) - 1:
                     self.task_q = deque()
                 else:
@@ -493,7 +492,7 @@ class Unit:
         for ind, (action, target, *extra) in enumerate(self.task_q):
             # if player.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
             if self.current_strategy == StrategyTypes.STARTER and (action == ValidActions.BUILD) and (game_map.position_to_cluster(target) is None):
-                print(f"REMOVING BUILD ACTION for UNIT: {self.id} because cluster does not exist")
+                # print(f"REMOVING BUILD ACTION for UNIT: {self.id} because cluster does not exist")
                 LogicGlobals.pos_being_built.discard(target)
                 if ind >= len(self.task_q) - 1:
                     self.task_q = deque()
