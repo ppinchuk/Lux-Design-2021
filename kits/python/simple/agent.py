@@ -174,6 +174,7 @@ def gather_turn_information(player, opponent):
             enemy_blocked_positions.add(tile.pos)
 
     LogicGlobals.pos_being_built = set()
+    LogicGlobals.RESOURCES_BEING_COLLECTED = {}
     for unit in player.units:
         unit.check_for_task_completion(game_map=LogicGlobals.game_state.map, player=player)
         blocked_positions.add(unit.pos)
@@ -185,6 +186,8 @@ def gather_turn_information(player, opponent):
                     player.cities[target].managers.add(unit.id)
                 else:
                     unit.current_task = None
+            elif task == ValidActions.COLLECT:
+                LogicGlobals.RESOURCES_BEING_COLLECTED[target] = LogicGlobals.RESOURCES_BEING_COLLECTED.get(target, set()) | {unit.id}
 
     clusters_already_bing_colonized = {
         c for c in LogicGlobals.clusters_to_colonize

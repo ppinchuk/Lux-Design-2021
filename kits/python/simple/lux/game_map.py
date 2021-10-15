@@ -380,6 +380,12 @@ class GameMap:
         cell = self.get_cell(x, y)
         cell.resource = Resource(r_type, amount)
 
+    def max_collectors_allowed_at(self, pos):
+        return sum(
+            self.is_within_bounds(p) and self.get_cell_by_pos(pos).citytile is None
+            for p in pos.adjacent_positions(include_center=False, include_diagonals=False)
+        )
+
     def num_adjacent_resources(self, pos, include_center=True, include_wood_that_is_growing=True, check_for_unlock=False):
         return sum(
             self.get_cell_by_pos(p).has_resource(include_wood_that_is_growing=include_wood_that_is_growing) and (self.get_cell_by_pos(p).resource.can_harvest if check_for_unlock else True)
@@ -715,6 +721,28 @@ class Position:
         else:
             return None
 
+    def _find_closest_resource_for_collecting(self, resources_to_consider, game_map, tie_breaker_func=None):
+        closest_resource_pos = {}
+        for resource in resources_to_consider:
+            closest_resource_pos[resource] = []
+            closest_dist = math.inf
+            for resource_tile in game_map.resources():
+                if resource_tile.resource.type != resource or len(LogicGlobals.RESOURCES_BEING_COLLECTED.get(resource_tile.pos, set())) >= LogicGlobals.game_state.map.max_collectors_allowed_at(resource_tile.pos):
+                    continue
+                dist = resource_tile.pos.distance_to(self)
+                if dist <= closest_dist:
+                    closest_dist = dist
+                    closest_resource_pos[resource].append(resource_tile.pos)
+        # positions = list(filter(None, [self._closest_resource_pos[r] for r in resources_to_consider]))
+        positions = [p for r in resources_to_consider for p in closest_resource_pos[r]]
+        if positions:
+            if tie_breaker_func is None:
+                return min(positions, key=self.distance_to)
+            else:
+                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p)))
+        else:
+            return None
+
     def find_closest_wood(self, game_map, tie_breaker_func=None):
         """ Find the closest wood to this position.
 
@@ -731,7 +759,8 @@ class Position:
             Position of closest resource.
 
         """
-        return self._find_closest_resource([ResourceTypes.WOOD], game_map, tie_breaker_func=tie_breaker_func)
+        # return self._find_closest_resource([ResourceTypes.WOOD], game_map, tie_breaker_func=tie_breaker_func)
+        return self._find_closest_resource_for_collecting([ResourceTypes.WOOD], game_map, tie_breaker_func=tie_breaker_func)
 
     def find_closest_resource(self, player, game_map, r_type=None, tie_breaker_func=None):
         """ Find the closest resource to this position.
@@ -766,6 +795,43 @@ class Position:
                 resources_to_consider.append(ResourceTypes.URANIUM)
 
         return self._find_closest_resource(resources_to_consider, game_map, tie_breaker_func=tie_breaker_func)
+
+    def find_closest_resource_for_collecting(self, player, game_map, r_type=None, tie_breaker_func=None):
+        """ Find the closest resource to this position.
+
+        Excludes positions that are already at max
+        collection capacity.
+
+        Parameters
+        ----------
+        player : Player object
+            Player wanting to find the closest resource.
+            Used to determine if player can mind coal or uranium.
+        game_map : :GameMap:
+            Map containing position and resources.
+        r_type : Constants.RESOURCE_TYPES, optional
+            Type of resource to look for. If `None`,
+            all resources are considered.
+        tie_breaker_func : callable, optional
+            Function used to break ties in distance to position.
+
+        Returns
+        -------
+        Position
+            Position of closest resource.
+
+        """
+
+        if r_type is not None:
+            resources_to_consider = [r_type]
+        else:
+            resources_to_consider = [ResourceTypes.WOOD]
+            if player.researched_coal():
+                resources_to_consider.append(ResourceTypes.COAL)
+            if player.researched_uranium():
+                resources_to_consider.append(ResourceTypes.URANIUM)
+
+        return self._find_closest_resource_for_collecting(resources_to_consider, game_map, tie_breaker_func=tie_breaker_func)
 
     def sort_directions_by_pathing_distance(self, target_pos, game_map, pos_to_check=None, tolerance=None, avoid_own_cities=False):
 

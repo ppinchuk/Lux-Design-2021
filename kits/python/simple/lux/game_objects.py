@@ -340,19 +340,23 @@ class Unit:
             )
 
             if not self.has_enough_resources_to_manage_city:
-                print(f"Manager {self.id} has to go find resources.")
-                target_pos = self.pos.find_closest_resource(
+                # print(f"Manager {self.id} has to go find resources.")
+                # target_pos = self.pos.find_closest_resource(
+                #     player, game_state.map
+                # )
+                target_pos = self.pos.find_closest_resource_for_collecting(
                     player, game_state.map
                 )
-                print(f"Found closest resource to Manager {self.id}:", target_pos)
+                # print(f"Found closest resource to Manager {self.id}:", target_pos)
                 if target_pos is not None:
                     if self.can_make_it_back_to_city_before_it_dies(target, closest_citytile_to_unit=closest_citytile_to_unit, mult=1.1):
                         if target_pos != self.pos and self.can_make_it_to_pos_without_dying(target_pos, mult=1.1): #  self.can_make_it_before_nightfall(target_pos, game_state, mult=1.0):
                             self.push_task((ValidActions.COLLECT, target_pos))
+                            LogicGlobals.RESOURCES_BEING_COLLECTED[target_pos] = LogicGlobals.RESOURCES_BEING_COLLECTED.get(target_pos, set()) | {self.id}
                             return self.propose_action(player, game_state)
                         else:  # TODO: What should we do if worker is too far away from resource to get there before night time???? Maybe have another unit transfer it some resources???
                             distance_to_target = self.pos.pathing_distance_to(target_pos, game_state.map)
-                            print(f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
+                            # print(f"Manager {self.id} wants to go find resources but it will take {distance_to_target * GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][self.type_str] * 1.1 + 0} turns to make it to pos {target_pos}, with {game_state.turns_until_next_night} turns left until nightfall")
                             return None, None
                     else:
                         print(f"Manager {self.id} cannot make it back before city dies!")
@@ -383,6 +387,7 @@ class Unit:
                 closest_resource_pos = self.closest_resource_pos_for_building(target, game_state, player)
                 if closest_resource_pos is not None:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
+                    LogicGlobals.RESOURCES_BEING_COLLECTED[closest_resource_pos] = LogicGlobals.RESOURCES_BEING_COLLECTED.get(closest_resource_pos, set()) | {self.id}
                     return self.propose_action(player, game_state)
                 else:
                     self.load_next_task()
@@ -413,10 +418,15 @@ class Unit:
 
         elif action == ValidActions.COLLECT:
             if game_state.map.get_cell_by_pos(target).resource is None:
-                target_pos = target.find_closest_resource(
+                # target_pos = target.find_closest_resource(
+                #     player, game_state.map
+                # )
+                LogicGlobals.RESOURCES_BEING_COLLECTED[target] = LogicGlobals.RESOURCES_BEING_COLLECTED.get(target, set()) - {self.id}
+                target_pos = target.find_closest_resource_for_collecting(
                     player, game_state.map
                 )
                 self.current_task = (action, target_pos)
+                LogicGlobals.RESOURCES_BEING_COLLECTED[target] = LogicGlobals.RESOURCES_BEING_COLLECTED.get(target, set()) | {self.id}
                 if target_pos is not None:
                     self.push_task((ValidActions.MOVE, target_pos))
                     return self.propose_action(player, game_state)
@@ -430,9 +440,11 @@ class Unit:
             # if game_state.map.get_cell_by_pos(self.pos).citytile is not None and game_state.turns_until_next_night <= 1: # TODO:  This is basic and can probably be improved... We don't even check for a resource in the movement direction
             #     return None, None
             if not self.can_make_it_to_pos_without_dying(target): # self.can_make_it_before_nightfall(target, game_state, mult=1) and (self.num_resources < GAME_CONSTANTS["PARAMETERS"]["LIGHT_UPKEEP"][self.type_str] * (GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"] + 1)):
-                closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
+                # closest_resource_pos = self.pos.find_closest_resource(player, game_state.map)
+                closest_resource_pos = self.pos.find_closest_resource_for_collecting(player, game_state.map)
                 if closest_resource_pos is not None and closest_resource_pos != target:
                     self.push_task((ValidActions.COLLECT, closest_resource_pos))
+                    LogicGlobals.RESOURCES_BEING_COLLECTED[closest_resource_pos] = LogicGlobals.RESOURCES_BEING_COLLECTED.get(closest_resource_pos, set()) | {self.id}
                     return self.propose_action(player, game_state)
                 # else:
                 #     return None, None
@@ -623,12 +635,14 @@ class Unit:
 
     def closest_resource_pos_for_building(self, build_pos, game_state, player):
         if self.num_resources >= 0.75 * GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:
-            return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
+            # return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
+            return build_pos.find_closest_resource_for_collecting(player, game_state.map, tie_breaker_func=self.turn_distance_to)
 
         closest_resource_pos = build_pos.find_closest_wood(game_state.map, tie_breaker_func=self.turn_distance_to)
         if closest_resource_pos is not None and build_pos.distance_to(closest_resource_pos) <= STRATEGY_HYPERPARAMETERS["STARTER"][f"FARTHEST_DISTANCE_TO_TRAVEL_FOR_WOOD_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]:
             return closest_resource_pos
-        return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
+        # return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
+        return build_pos.find_closest_resource_for_collecting(player, game_state.map, tie_breaker_func=self.turn_distance_to)
 
     def can_build(self, game_map) -> bool:
         """

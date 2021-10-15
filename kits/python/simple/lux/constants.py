@@ -102,6 +102,7 @@ class LogicGlobals:
     main_city_close_to_coal = None
     CLUSTER_ID_TO_BUILDERS = {}
     CLUSTER_ID_TO_MANAGERS = {}
+    RESOURCES_BEING_COLLECTED = {}
 
     @classmethod
     def reset(cls):
@@ -126,6 +127,7 @@ class LogicGlobals:
         cls.main_city_close_to_coal = None
         cls.CLUSTER_ID_TO_BUILDERS = {}
         cls.CLUSTER_ID_TO_MANAGERS = {}
+        cls.RESOURCES_BEING_COLLECTED = {}
 
     @classmethod
     def just_unlocked_new_resource(cls):
