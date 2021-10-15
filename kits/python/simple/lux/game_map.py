@@ -200,7 +200,7 @@ class ResourceCluster:
     def _set_basic_positions(self, game_map):
         self.pos_to_defend = set()
         for r_pos in self._resource_positions:
-            for pos in r_pos.adjacent_positions(include_center=False, include_diagonals=True):
+            for pos in r_pos.adjacent_positions(include_center=True, include_diagonals=True):
                 if game_map.is_within_bounds(pos) and not game_map.get_cell_by_pos(pos).has_resource():
                     self.pos_to_defend.add(pos)
 
@@ -219,47 +219,60 @@ class ResourceCluster:
             cell.resource.amount for cell in cells  # if cell.resource is not None
         ) if cells else 0
 
-        self.pos_to_defend = set()
-        if LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
-            self._set_research_based_pos_to_defend(game_map)
-        else:
-            if not cells:
-                self._resource_positions = dict()
-            elif not self.pos_to_defend or len(cells) != len(self._resource_positions):
+        x_vals = [p.x for p in self._resource_positions.keys()]
+        y_vals = [p.y for p in self._resource_positions.keys()]
 
-                self._resource_positions = dict()
-                for cell in cells:
-                    self._resource_positions[cell.pos] = None
+        self.min_loc = (min(x_vals), min(y_vals))
+        self.max_loc = (max(x_vals), max(y_vals))
+        self.center_pos = Position(
+            (self.max_loc[0] - self.min_loc[0]) // 2 + self.min_loc[0],
+            (self.max_loc[1] - self.min_loc[1]) // 2 + self.min_loc[1],
+        )
+        self._set_basic_positions(game_map)
 
-                x_vals = [p.x for p in self._resource_positions.keys()]
-                y_vals = [p.y for p in self._resource_positions.keys()]
-
-                self.min_loc = (min(x_vals), min(y_vals))
-                self.max_loc = (max(x_vals), max(y_vals))
-                self.center_pos = Position(
-                    (self.max_loc[0] - self.min_loc[0]) // 2 + self.min_loc[0],
-                    (self.max_loc[1] - self.min_loc[1]) // 2 + self.min_loc[1],
-                )
-
-                # self._set_smart_positions(game_map)
-                self._set_basic_positions(game_map)
-
-            log(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}")
-
-            # opponent_x_vals, opponent_y_vals = [], []
-            # for unit in opponent.units:
-            #     opponent_x_vals.append(unit.pos.x)
-            #     opponent_y_vals.append(unit.pos.y)
-            # for p in opponent.city_pos:
-            #     opponent_x_vals.append(p.x)
-            #     opponent_y_vals.append(p.y)
-            # opponent_med_pos = Position(
-            #     statistics.median(opponent_x_vals),
-            #     statistics.median(opponent_y_vals),
-            # )
-            # self.pos_to_defend = sorted(
-            #     self.pos_to_defend, key=opponent_med_pos.distance_to
-            # )
+        # if LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
+        #     self._set_research_based_pos_to_defend(game_map)
+        # else:
+        #     if not cells:
+        #         self._resource_positions = dict()
+        #     elif not self.pos_to_defend or len(cells) != len(self._resource_positions):
+        #
+        #         self._resource_positions = dict()
+        #         for cell in cells:
+        #             self._resource_positions[cell.pos] = None
+        #
+        #         x_vals = [p.x for p in self._resource_positions.keys()]
+        #         y_vals = [p.y for p in self._resource_positions.keys()]
+        #
+        #         self.min_loc = (min(x_vals), min(y_vals))
+        #         self.max_loc = (max(x_vals), max(y_vals))
+        #         self.center_pos = Position(
+        #             (self.max_loc[0] - self.min_loc[0]) // 2 + self.min_loc[0],
+        #             (self.max_loc[1] - self.min_loc[1]) // 2 + self.min_loc[1],
+        #         )
+        #
+        #         # self._set_smart_positions(game_map)
+        #         self._set_basic_positions(game_map)
+        #
+        #     log(f"Num to block for cluster at {self.center_pos}: {self.n_to_block}")
+        #
+        #
+        #     # opponent_x_vals, opponent_y_vals = [], []
+        #     # for unit in opponent.units:
+        #     #     opponent_x_vals.append(unit.pos.x)
+        #     #     opponent_y_vals.append(unit.pos.y)
+        #     # for p in opponent.city_pos:
+        #     #     opponent_x_vals.append(p.x)
+        #     #     opponent_y_vals.append(p.y)
+        #     # opponent_med_pos = Position(
+        #     #     statistics.median(opponent_x_vals),
+        #     #     statistics.median(opponent_y_vals),
+        #     # )
+        #     # self.pos_to_defend = sorted(
+        #     #     self.pos_to_defend, key=opponent_med_pos.distance_to
+        #     # )
+        #
+        #
         if self.sort_position is None:
             opponent_positions = opponent.city_pos | opponent.unit_pos
             if opponent_positions:
@@ -419,7 +432,9 @@ class GameMap:
             cluster.update_state(
                 game_map=self, opponent=opponent
             )
-            if cluster.total_amount <= 0 and LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
+            cluster_has_no_resources = cluster.total_amount <= 0
+            cluster_has_cities = STRATEGY_HYPERPARAMETERS["STARTER"]["CONTINUE_TO_BUILD_AFTER_RESOURCES_DEPLETED"] and any(p in LogicGlobals.player.city_pos for p in cluster.pos_to_defend)
+            if cluster_has_no_resources and not cluster_has_cities and LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                 clusters_to_discard.add(cluster)
         self.resource_clusters = self.resource_clusters - clusters_to_discard
         self.save_state()
