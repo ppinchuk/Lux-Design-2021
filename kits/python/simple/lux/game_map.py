@@ -660,6 +660,9 @@ class Position:
         elif direction == Directions.CENTER:
             return Position(self.x, self.y)
 
+    def reflect_about(self, pos):
+        return Position(2 * pos.x - self.x, 2 * pos.y - self.y)
+
     def find_closest_city_tile(self, player, game_map):
         """ Find the closest city tile to this position.
 

@@ -99,4 +99,11 @@ class Game:
             for cluster in self.map.resource_clusters:
                 if len(cluster.pos_defended) >= 2:
                     cluster.sort_position = list(LogicGlobals.player.city_pos)[0]
-                    self.map.update_clusters(LogicGlobals.opponent)
+                elif len(cluster.pos_defended) == 1:
+                    pos = cluster.pos_defended[0]
+                    if pos in LogicGlobals.player.city_pos:
+                        cluster.sort_position = list(LogicGlobals.player.city_pos)[0]
+                    else:
+                        cluster.sort_position = pos.reflect_about(cluster.center_pos)
+
+            self.map.update_clusters(LogicGlobals.opponent)

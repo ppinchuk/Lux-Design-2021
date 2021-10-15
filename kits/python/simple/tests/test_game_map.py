@@ -32,9 +32,7 @@ class TestResourceCluster:
                 'r coal 6 5 419',
                 'u 0 0 u_1 3 5 0 0 0 0',
                 'u 0 1 u_2 7 5 0 0 0 0',
-                'c 0 c_1 0 23',
                 'c 1 c_2 0 23',
-                'ct 0 c_1 3 5 0',
                 'ct 1 c_2 7 5 0',
             ], 0
         )
