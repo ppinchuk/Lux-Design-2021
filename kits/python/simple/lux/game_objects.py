@@ -623,7 +623,7 @@ class Unit:
             return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
 
         closest_resource_pos = build_pos.find_closest_wood(game_state.map, tie_breaker_func=self.turn_distance_to)
-        if closest_resource_pos is not None:
+        if closest_resource_pos is not None and build_pos.distance_to(closest_resource_pos) <= STRATEGY_HYPERPARAMETERS["STARTER"][f"FARTHEST_DISTANCE_TO_TRAVEL_FOR_WOOD_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]:
             return closest_resource_pos
         return build_pos.find_closest_resource(player, game_state.map, tie_breaker_func=self.turn_distance_to)
 
