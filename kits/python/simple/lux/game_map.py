@@ -433,7 +433,7 @@ class GameMap:
                 game_map=self, opponent=opponent
             )
             cluster_has_no_resources = cluster.total_amount <= 0
-            cluster_has_cities = STRATEGY_HYPERPARAMETERS["STARTER"]["CONTINUE_TO_BUILD_AFTER_RESOURCES_DEPLETED"] and any(p in LogicGlobals.player.city_pos for p in cluster.pos_to_defend)
+            cluster_has_cities = any(p in LogicGlobals.player.city_pos for p in cluster.pos_to_defend)
             if cluster_has_no_resources and not cluster_has_cities and LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                 clusters_to_discard.add(cluster)
         self.resource_clusters = self.resource_clusters - clusters_to_discard
@@ -513,7 +513,7 @@ class Position:
             return INFINITE_DISTANCE
         if pos == self:
             return 0
-        elif self - pos > 10:
+        elif (self - pos) > 10:
             return (self - pos) * cooldown
         else:
             i = 0
@@ -795,6 +795,7 @@ class Position:
                 avoid_own_cities=avoid_own_cities,
                 include_target_road=True
             ),
+            secondary_dist_func=target_pos.distance_to,
             pos_to_check=pos_to_check,
             tolerance=tolerance
         )
@@ -805,15 +806,15 @@ class Position:
             for direction in ALL_DIRECTIONS
         }
 
-    def _sort_directions(self, dist_func, pos_to_check=None, tolerance=None):
+    def _sort_directions(self, dist_func, secondary_dist_func=None, pos_to_check=None, tolerance=None):
         if pos_to_check is None:
             pos_to_check = self._default_positions_to_check()
 
         dir_pos = list(pos_to_check.items())
-        dists = {d: dist_func(p) for d, p in dir_pos}
+        dists = {d: (dist_func(p), secondary_dist_func(p) if secondary_dist_func is not None else 0) for d, p in dir_pos}
 
         if tolerance is not None:
-            dists = {k: v for k, v in dists.items() if v <= tolerance + min(dists.values())}
+            dists = {k: v for k, v in dists.items() if v[0] <= tolerance + min(v[0] for v in dists.values())}
 
         return sorted(dists, key=dists.get)
 

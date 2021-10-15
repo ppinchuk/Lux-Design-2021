@@ -31,7 +31,11 @@ def city_tile_to_build_from_id(cluster_id, game_map, pos_being_built):
 
 
 def set_unit_cluster_to_defend_id(unit, player):
-    if unit.cluster_to_defend_id is None or unit.cluster_to_defend_id not in {rc.id for rc in LogicGlobals.game_state.map.resource_clusters}:
+    if unit.cluster_to_defend_id is None or LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id) is None or (
+            LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).total_amount <= 0
+            and not STRATEGY_HYPERPARAMETERS["STARTER"]["CONTINUE_TO_BUILD_AFTER_RESOURCES_DEPLETED"]
+            and len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set())) > STRATEGY_HYPERPARAMETERS["MANAGER_TO_CITY_RATIO"] * sum(len(LogicGlobals.player.cities[c_id].citytiles) for c_id in LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids)
+    ):
         if unit.cluster_to_defend_id is not None:
             LogicGlobals.CLUSTER_ID_TO_BUILDERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
             LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}

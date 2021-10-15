@@ -48,7 +48,6 @@ def starter_strategy(unit, player):
     #         LogicGlobals.clusters_to_colonize,
     #         key=lambda c: c.current_score
     #     )
-
     set_unit_cluster_to_defend_id(unit, player)
 
     if unit.cluster_to_defend_id is None:
@@ -57,8 +56,11 @@ def starter_strategy(unit, player):
     cluster_has_no_cities = not LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids
     all_cities_can_survive = all(LogicGlobals.player.cities[c_id].can_survive_until_end_of_game for c_id in LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids)
     # cluster_has_no_builders = not LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
-    num_builders = len(LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()))
-    cluster_has_too_few_builders = num_builders <= max(1, STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set())))
+    if LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).total_amount <= 0 and not STRATEGY_HYPERPARAMETERS["STARTER"]["CONTINUE_TO_BUILD_AFTER_RESOURCES_DEPLETED"]:
+        cluster_has_too_few_builders = False
+    else:
+        num_builders = len(LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set()))
+        cluster_has_too_few_builders = num_builders <= max(1, STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set())))
     # unit_is_a_builder = unit.id in LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
 
     if cluster_has_no_cities or all_cities_can_survive or cluster_has_too_few_builders: #  or unit_is_a_builder:
