@@ -1,14 +1,14 @@
-from lux.game import Game
-from lux.game_map import Position
-import lux.game_objects as go
+from mediocre_lux.game import Game
+from mediocre_lux.game_map import Position
+import mediocre_lux.game_objects as go
 import sys
 # print("SOME RANDOM NUMBER:", random.random(), file=sys.stderr)
-from lux.constants import ValidActions, log, print, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
-from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
-from lux.strategy_utils import compute_tbs_com
+from mediocre_lux.constants import ValidActions, log, print, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
+from mediocre_lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
+from mediocre_lux.strategy_utils import compute_tbs_com
 from collections import deque, Counter, UserDict
 from itertools import chain
-from lux import annotate
+from mediocre_lux import annotate
 from random import seed
 import getpass
 import math
@@ -274,7 +274,8 @@ def unit_action_resolution(player, opponent):
                         current_build_pos = task[1]
                         break
             if current_build_pos is None:
-                print(f"BUILDER {unit.id} assigned to cluster {unit.cluster_to_defend_id} has no build task!!!")
+                pass
+                # print(f"BUILDER {unit.id} assigned to cluster {unit.cluster_to_defend_id} has no build task!!!")
             else:
                 if current_build_pos in pos_should_be_built:
                     pos_should_be_built.discard(current_build_pos)
@@ -283,8 +284,11 @@ def unit_action_resolution(player, opponent):
 
         for unit in units_that_should_switch_builds:
             if pos_should_be_built:
+                new_target = min(pos_should_be_built, key=lambda p: (unit.pos.distance_to(p), p.x, p.y))
+                pos_should_be_built.discard(new_target)
+                # print(f"Switching BUILDER {unit.id} target to {new_target}")
                 unit.remove_next_build_action()
-                unit.set_task(ValidActions.BUILD, pos_should_be_built.pop())
+                unit.set_task(ValidActions.BUILD, new_target)
 
     # for unit in player.units:
     #     action, target = unit.propose_action(player, LogicGlobals.game_state)

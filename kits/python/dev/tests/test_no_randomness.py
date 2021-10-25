@@ -27,7 +27,7 @@ import json
 
 class TestNoRandomness:
 
-    # @pytest.mark.skip(reason="takes too long")
+    @pytest.mark.skip(reason="takes too long")
     @pytest.mark.skipif(getpass.getuser() != 'Paul', reason="requires Paul's computer for non-randomness")
     @pytest.mark.parametrize("seed", [
         183985976,
@@ -38,9 +38,9 @@ class TestNoRandomness:
         for ind in range(3):
             try:
                 subprocess.run(
-                    ['lux-ai-2021', f'--seed={seed}', 'main.py', 'main_simple.py']
+                    ['lux-ai-2021', f'--seed={seed}', 'dev\\main.py', 'simple\\main.py']
                     + [f'--out=C:\\Users\\Paul\\OneDrive\\LuxAIReplays\\debug\\replay_{ind}-{seed}.json'],
-                    cwd='C:\\Users\\Paul\\PycharmProjects\\Lux-Design-2021\\kits\\python\\simple',
+                    cwd='C:\\Users\\Paul\\PycharmProjects\\Lux-Design-2021\\kits\\python',
                     shell=True
                 )
 
@@ -62,19 +62,43 @@ class TestNoRandomness:
 
         for ind, (l1, l2) in enumerate(zip(data0['allCommands'], data1['allCommands'])):
             for d in l1:
-                assert any(d == x for x in l2), f"Turn {ind}, seed {seed}: {l1}, {l2}"
+                assert any(d == x for x in l2), f"Turn {ind}, seed {seed}, {d} not in {l2}. First list: {l1}"
 
         for ind, (l1, l2) in enumerate(zip(data0['allCommands'], data2['allCommands'])):
             for d in l1:
-                assert any(d == x for x in l2), f"Turn {ind}, seed {seed}: {l1}, {l2}"
+                assert any(d == x for x in l2), f"Turn {ind}, seed {seed}, {d} not in {l2}. First list: {l1}"
 
         for ind, (l1, l2) in enumerate(zip(data1['allCommands'], data2['allCommands'])):
             for d in l1:
-                assert any(d == x for x in l2), f"Turn {ind}, seed {seed}: {l1}, {l2}"
+                assert any(d == x for x in l2), f"Turn {ind}, seed {seed}, {d} not in {l2}. First list: {l1}"
 
         os.remove(f'C:\\Users\\Paul\\OneDrive\\LuxAIReplays\\debug\\replay_0-{seed}.json')
         os.remove(f'C:\\Users\\Paul\\OneDrive\\LuxAIReplays\\debug\\replay_1-{seed}.json')
         os.remove(f'C:\\Users\\Paul\\OneDrive\\LuxAIReplays\\debug\\replay_2-{seed}.json')
+
+    @pytest.mark.skip(reason="takes too long")
+    @pytest.mark.parametrize("seed, min_score", [
+        (69420, 20),  # could be as high as 26
+        # (183985976, 10),
+    ])
+    def test_min_city_tiles(self, reset_agent_state, seed, min_score):
+
+        conf = {
+            "loglevel": 2,
+            "annotations": True
+        }
+
+        if seed is not None:
+            conf['seed'] = seed
+
+        reset_agent_state()
+        env = make("lux_ai_2021", configuration=conf, debug=True)
+        out = env.run([agent, simple_agent])
+
+        assert sum('ct 0' in x for x in out[-1][0]['observation']['updates']) >= min_score
+        # for x in out[-1][0]['observation']['updates']:
+        #     if 'ct 0' in x:
+        #         print(x)
 
     @pytest.mark.skip(reason="does not test for randomness from CLI")
     def test_no_randomness(self, reset_agent_state):
