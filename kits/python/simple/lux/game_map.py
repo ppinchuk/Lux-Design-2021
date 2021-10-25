@@ -274,17 +274,24 @@ class ResourceCluster:
         if self.sort_position is None:
             opponent_positions = opponent.city_pos | opponent.unit_pos
             if opponent_positions:
+                # closest_opponent_pos = min(
+                #     opponent_positions,
+                #     key=lambda p: (self.center_pos.distance_to(p), p.x, p.y)
+                # )
                 closest_opponent_pos = min(
                     opponent_positions,
-                    key=lambda p: (self.center_pos.distance_to(p), p.x, p.y)
+                    key=lambda p: (self.center_pos.radial_distance_to(p), p.x, p.y)
                 )
             else:
                 closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
         else:
             closest_opponent_pos = self.sort_position
 
+        # self.pos_to_defend = sorted(
+        #     self.pos_to_defend, key=lambda p: (closest_opponent_pos.distance_to(p), p.x, p.y)
+        # )
         self.pos_to_defend = sorted(
-            self.pos_to_defend, key=lambda p: (closest_opponent_pos.distance_to(p), p.x, p.y)
+            self.pos_to_defend, key=lambda p: (closest_opponent_pos.radial_distance_to(p), p.x, p.y)
         )
 
         self.city_ids = set()
@@ -609,6 +616,12 @@ class Position:
                 if x[0] == self:
                     return x[1] + 1
             return step
+
+    def radial_distance_to(self, pos):
+        """
+        Returns L2 distance to pos
+        """
+        return math.sqrt((self.x - pos.x) ** 2 + (self.y - pos.y) ** 2)
 
     def distance_to(self, pos):
         """
