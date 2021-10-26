@@ -280,7 +280,7 @@ class ResourceCluster:
                 # )
                 closest_opponent_pos = min(
                     opponent_positions,
-                    key=lambda p: (self.center_pos.radial_distance_to(p), p.x, p.y)
+                    key=lambda p: (self.center_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), p.x, p.y)
                 )
             else:
                 closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
@@ -291,7 +291,7 @@ class ResourceCluster:
         #     self.pos_to_defend, key=lambda p: (closest_opponent_pos.distance_to(p), p.x, p.y)
         # )
         self.pos_to_defend = sorted(
-            self.pos_to_defend, key=lambda p: (closest_opponent_pos.radial_distance_to(p), p.x, p.y)
+            self.pos_to_defend, key=lambda p: (closest_opponent_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), p.x, p.y)
         )
 
         self.city_ids = set()
@@ -575,6 +575,53 @@ class Position:
             return INFINITE_DISTANCE
         if pos == self:
             return 0
+        elif self - pos > 15:
+            return self - pos
+        else:
+            i = 0
+            step = 0
+            main_list = [(pos, step)]
+
+            tiles_not_blocked = {self, pos}
+            for p in [self, pos]:
+                cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
+                if cell.citytile is not None:
+                    city_id = cell.citytile.cityid
+                    if city_id in LogicGlobals.player.cities:
+                        tiles_not_blocked = tiles_not_blocked | {c.pos for c in LogicGlobals.player.cities[city_id].citytiles}
+
+            while self not in set(x[0] for x in main_list):
+                # if debug:
+                #     print(main_list)
+                try:
+                    next_pos, step = main_list[i]
+                except IndexError:
+                    return 100000
+                if step >= 15:
+                    break
+                for p in next_pos.adjacent_positions(include_center=False):
+                    if p == self:
+                        return step + 1
+
+                    is_valid_to_move_to = p not in (LogicGlobals.opponent.city_pos - tiles_not_blocked)
+                    tiles_blocked_by_units = {u.pos for u in LogicGlobals.player.units if (LogicGlobals.game_state.map.get_cell_by_pos(u.pos).citytile is not None and (u.current_task is not None and u.current_task[0] != ValidActions.MOVE))}
+                    is_valid_to_move_to = is_valid_to_move_to and p not in (tiles_blocked_by_units - tiles_not_blocked)
+                    if avoid_own_cities:
+                        is_valid_to_move_to = is_valid_to_move_to and p not in (LogicGlobals.player.city_pos - tiles_not_blocked)
+
+                    if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
+                        main_list.append((p, step + 1))
+                i += 1
+            for x in main_list:
+                if x[0] == self:
+                    return x[1] + 1
+            return step
+
+    def tile_distance_to(self, pos, positions_to_avoid=None, debug=False):
+        if pos is None or not LogicGlobals.game_state.map.is_within_bounds(pos):
+            return INFINITE_DISTANCE
+        if pos == self:
+            return 0
         elif self - pos > 10:
             return self - pos
         else:
@@ -603,13 +650,9 @@ class Position:
                     if p == self:
                         return step + 1
 
-                    is_valid_to_move_to = p not in (LogicGlobals.opponent.city_pos - tiles_not_blocked)
-                    tiles_blocked_by_units = {u.pos for u in LogicGlobals.player.units if (LogicGlobals.game_state.map.get_cell_by_pos(u.pos).citytile is not None and (u.current_task is not None and u.current_task[0] != ValidActions.MOVE))}
-                    is_valid_to_move_to = is_valid_to_move_to and p not in (tiles_blocked_by_units - tiles_not_blocked)
-                    if avoid_own_cities:
-                        is_valid_to_move_to = is_valid_to_move_to and p not in (LogicGlobals.player.city_pos - tiles_not_blocked)
+                    is_valid_to_move_to = not positions_to_avoid or p not in positions_to_avoid
 
-                    if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
+                    if LogicGlobals.game_state.map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + 1))
                 i += 1
             for x in main_list:
