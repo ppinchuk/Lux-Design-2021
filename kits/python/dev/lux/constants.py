@@ -119,6 +119,8 @@ class LogicGlobals:
     CLUSTER_ID_TO_MANAGERS = {}
     RESOURCES_BEING_COLLECTED = {}
     RP_AT_LAST_ADJUSTMENT = 0
+    x_mult = 1
+    y_mult = 1
 
     @classmethod
     def reset(cls):
@@ -145,6 +147,8 @@ class LogicGlobals:
         cls.CLUSTER_ID_TO_MANAGERS = {}
         cls.RESOURCES_BEING_COLLECTED = {}
         cls.RP_AT_LAST_ADJUSTMENT = 0
+        cls.x_mult = 1
+        cls.y_mult = 1
 
     @classmethod
     def just_unlocked_new_resource(cls):

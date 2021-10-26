@@ -188,7 +188,7 @@ def starter_strategy_old(unit, player):
                 # )
                 unit.cluster_to_defend = min(
                     LogicGlobals.clusters_to_colonize,
-                    key=lambda c: (unit.pos.distance_to(c.center_pos), c.center_pos.x, c.center_pos.y)
+                    key=lambda c: (unit.pos.distance_to(c.center_pos), LogicGlobals.x_mult * c.center_pos.x, LogicGlobals.y_mult * c.center_pos.y)
                 )
                 closest_cluster.n_workers_sent_to_colonize += 1
             else:

@@ -94,7 +94,7 @@ class City:
             for tile in self.citytiles
         ]
         self.resource_positions = [
-            x[0] for x in sorted(num_resources_for_tile, key=lambda x: (x[1], x[0].x, x[0].y))
+            x[0] for x in sorted(num_resources_for_tile, key=lambda x: (x[1], LogicGlobals.x_mult * x[0].x, LogicGlobals.y_mult * x[0].y))
         ][::-1]
 
         self.neighbor_resource_types = set()
@@ -287,7 +287,7 @@ class Unit:
         if closest_citytile_to_unit is None:
             closest_citytile_to_unit = min(
                 [cell.pos for cell in LogicGlobals.player.cities[city_id].citytiles],
-                key=lambda p: (self.pos.distance_to(p), p.x, p.y)
+                key=lambda p: (self.pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
             )
         return mult * LogicGlobals.player.cities[city_id].num_turns_can_survive > self.turn_distance_to(closest_citytile_to_unit)
 
@@ -336,7 +336,7 @@ class Unit:
 
             closest_citytile_to_unit = min(
                 [cell.pos for cell in player.cities[target].citytiles],
-                key=lambda p: (self.pos.distance_to(p), p.x, p.y)
+                key=lambda p: (self.pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
             )
 
             if not self.has_enough_resources_to_manage_city:
@@ -402,7 +402,7 @@ class Unit:
                     if cluster is not None and cluster.city_ids:
                         closest_city_pos = min(
                             [ct.pos for c_id in cluster.city_ids for ct in LogicGlobals.player.cities[c_id].citytiles if c_id in LogicGlobals.player.cities],
-                            key=lambda p: (self.pos.distance_to(p), p.x, p.y)
+                            key=lambda p: (self.pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
                         )
                         if self.can_make_it_to_pos_without_dying(closest_city_pos) and self.turn_distance_to(closest_city_pos) < LogicGlobals.game_state.turns_until_next_day:
                             self.push_task((ValidActions.MOVE, closest_city_pos))

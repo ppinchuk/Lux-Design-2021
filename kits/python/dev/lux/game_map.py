@@ -276,11 +276,11 @@ class ResourceCluster:
             if opponent_positions:
                 # closest_opponent_pos = min(
                 #     opponent_positions,
-                #     key=lambda p: (self.center_pos.distance_to(p), p.x, p.y)
+                #     key=lambda p: (self.center_pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
                 # )
                 closest_opponent_pos = min(
                     opponent_positions,
-                    key=lambda p: (self.center_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), p.x, p.y)
+                    key=lambda p: (self.center_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
                 )
             else:
                 closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
@@ -288,10 +288,10 @@ class ResourceCluster:
             closest_opponent_pos = self.sort_position
 
         # self.pos_to_defend = sorted(
-        #     self.pos_to_defend, key=lambda p: (closest_opponent_pos.distance_to(p), p.x, p.y)
+        #     self.pos_to_defend, key=lambda p: (closest_opponent_pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
         # )
         self.pos_to_defend = sorted(
-            self.pos_to_defend, key=lambda p: (closest_opponent_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), p.x, p.y)
+            self.pos_to_defend, key=lambda p: (closest_opponent_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
         )
 
         self.city_ids = set()
@@ -563,7 +563,7 @@ class Position:
 
                     if game_map.is_within_bounds(p) and is_valid_to_move_to and p not in set(x[0] for x in main_list):
                         main_list.append((p, step + max(1, cooldown - game_map.get_cell_by_pos(p).road)))
-                main_list = sorted(main_list, key=lambda x: (x[1], x[0].x, x[0].y))
+                main_list = sorted(main_list, key=lambda x: (x[1], LogicGlobals.x_mult * x[0].x, LogicGlobals.y_mult * x[0].y))
                 i += 1
             for x in main_list:
                 if x[0] == self:
@@ -769,9 +769,9 @@ class Position:
         positions = [p for r in resources_to_consider for p in self._closest_resource_pos[r]]
         if positions:
             if tie_breaker_func is None:
-                return min(positions, key=lambda p: (self.distance_to(p), p.x, p.y))
+                return min(positions, key=lambda p: (self.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y))
             else:
-                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p), p.x, p.y))
+                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y))
         else:
             return None
 
@@ -791,9 +791,9 @@ class Position:
         positions = [p for r in resources_to_consider for p in closest_resource_pos[r]]
         if positions:
             if tie_breaker_func is None:
-                return min(positions, key=lambda p: (self.distance_to(p), p.x, p.y))
+                return min(positions, key=lambda p: (self.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y))
             else:
-                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p), p.x, p.y))
+                return min(positions, key=lambda p: (self.distance_to(p), tie_breaker_func(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y))
         else:
             return None
 

@@ -100,13 +100,16 @@ class Game:
             self.map.find_clusters()
         self.map.update_clusters(LogicGlobals.opponent)
         if self.turn == 0:
+            starter_pos = list(LogicGlobals.player.city_pos)[0]
+            LogicGlobals.x_mult = 1 if starter_pos.x > self.map.width // 2 else -1
+            LogicGlobals.y_mult = 1 if starter_pos.y > self.map.height // 2 else -1
             for cluster in self.map.resource_clusters:
                 if len(cluster.pos_defended) >= 2:
-                    cluster.sort_position = list(LogicGlobals.player.city_pos)[0]
+                    cluster.sort_position = starter_pos
                 elif len(cluster.pos_defended) == 1:
                     pos = cluster.pos_defended[0]
                     if pos in LogicGlobals.player.city_pos:
-                        cluster.sort_position = list(LogicGlobals.player.city_pos)[0]
+                        cluster.sort_position = starter_pos
                     else:
                         cluster.sort_position = pos.reflect_about(cluster.center_pos)
 
