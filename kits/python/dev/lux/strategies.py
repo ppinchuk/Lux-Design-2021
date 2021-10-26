@@ -69,7 +69,8 @@ def starter_strategy(unit, player):
         new_city_pos = city_tile_to_build_from_id(
             unit.cluster_to_defend_id,
             LogicGlobals.game_state.map,
-            LogicGlobals.pos_being_built
+            LogicGlobals.pos_being_built,
+            unit
         )
         if new_city_pos is not None:
             unit.set_task(action=ValidActions.BUILD, target=new_city_pos)

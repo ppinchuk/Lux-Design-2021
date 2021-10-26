@@ -47,6 +47,7 @@ class ResourceCluster:
         self.n_workers_sent_to_colonize = 0
         self.city_ids = set()
         self.sort_position = None
+        self.needs_defending_from_opponent = False
 
         for pos in positions:
             self._resource_positions[pos] = None
@@ -293,6 +294,21 @@ class ResourceCluster:
         self.pos_to_defend = sorted(
             self.pos_to_defend, key=lambda p: (closest_opponent_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
         )
+
+        if LogicGlobals.opponent.units:
+            distance_to_closest_enemy = {
+                p: (min(p.distance_to(u.pos) for u in LogicGlobals.opponent.units), -min(p.distance_to(u.pos) for u in LogicGlobals.player.units), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
+                for p in self.pos_to_defend
+            }
+            pos_closest_to_enemy = min(
+                distance_to_closest_enemy,
+                key=distance_to_closest_enemy.get
+            )
+
+            opponent_distance, player_distance, *__ = distance_to_closest_enemy[pos_closest_to_enemy]
+            self.needs_defending_from_opponent = -player_distance + 1 <= opponent_distance
+        else:
+            self.needs_defending_from_opponent = False
 
         self.city_ids = set()
         self.pos_defended = []

@@ -22,13 +22,25 @@ def city_tile_to_build(cluster, game_map, pos_being_built):
     return None
 
 
-def city_tile_to_build_from_id(cluster_id, game_map, pos_being_built):
+def city_tile_to_build_from_id(cluster_id, game_map, pos_being_built, unit):
     if cluster_id is None:
         return None
-    for pos in game_map.get_cluster_by_id(cluster_id).pos_to_defend:
-        cell = game_map.get_cell_by_pos(pos)
-        if cell.is_empty() and pos not in pos_being_built:
-            return cell.pos
+    cluster = game_map.get_cluster_by_id(cluster_id)
+    if cluster.needs_defending_from_opponent:
+        for pos in cluster.pos_to_defend:
+            cell = game_map.get_cell_by_pos(pos)
+            if cell.is_empty() and pos not in pos_being_built:
+                return cell.pos
+    else:
+        try:
+            return min(
+                filter(
+                    lambda p: p not in pos_being_built and game_map.get_cell_by_pos(p).is_empty(),
+                    cluster.pos_to_defend
+                ),
+                key=lambda p: (unit.pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y))
+        except ValueError:
+            pass
     return None
 
 

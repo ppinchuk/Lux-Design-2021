@@ -153,7 +153,7 @@ def update_logic_globals(player):
                 unit.cluster_to_defend_id = LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile.cluster_to_defend_id
             LogicGlobals.RBS_cluster_carts.get(unit.cluster_to_defend_id, set()).add(unit.id)
 
-    update_spawn_to_research_ratio()
+    # update_spawn_to_research_ratio()
 
 
 def gather_turn_information(player, opponent):
@@ -247,10 +247,10 @@ def unit_action_resolution(player, opponent):
             # set_unit_task(unit, player)
 
     for cluster_id, builders in LogicGlobals.CLUSTER_ID_TO_BUILDERS.items():
-        pos_should_be_built = set()
         cluster_to_defend = LogicGlobals.game_state.map.get_cluster_by_id(cluster_id)
-        if cluster_to_defend is None:
+        if cluster_to_defend is None or not cluster_to_defend.needs_defending_from_opponent:
             continue
+        pos_should_be_built = set()
         for pos in LogicGlobals.game_state.map.get_cluster_by_id(cluster_id).pos_to_defend:
             if len(pos_should_be_built) >= len(builders):
                 break
