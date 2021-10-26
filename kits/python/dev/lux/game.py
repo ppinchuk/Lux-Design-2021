@@ -16,6 +16,8 @@ class Game:
         self.map_height = int(mapInfo[1])
         self.players = [Player(0), Player(1)]
         self.map = None
+        self.player_rp = []
+        self.opponent_rp = []
 
     def _end_turn(self):
         print("D_FINISH")
@@ -92,6 +94,8 @@ class Game:
 
         LogicGlobals.player = LogicGlobals.game_state.players[player_id]
         LogicGlobals.opponent = LogicGlobals.game_state.players[(player_id + 1) % 2]
+        self.player_rp.append(LogicGlobals.player.research_points)
+        self.opponent_rp.append(LogicGlobals.opponent.research_points)
         if self.map.resource_clusters is None:
             self.map.find_clusters()
         self.map.update_clusters(LogicGlobals.opponent)

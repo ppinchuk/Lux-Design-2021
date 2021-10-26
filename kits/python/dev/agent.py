@@ -5,7 +5,7 @@ import sys
 # print("SOME RANDOM NUMBER:", random.random(), file=sys.stderr)
 from lux.constants import ValidActions, log, print, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
 from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
-from lux.strategy_utils import compute_tbs_com
+from lux.strategy_utils import compute_tbs_com, update_spawn_to_research_ratio
 from collections import deque, Counter, UserDict
 from itertools import chain
 from lux import annotate
@@ -152,6 +152,8 @@ def update_logic_globals(player):
             if unit.id not in go.UNIT_CACHE:
                 unit.cluster_to_defend_id = LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile.cluster_to_defend_id
             LogicGlobals.RBS_cluster_carts.get(unit.cluster_to_defend_id, set()).add(unit.id)
+
+    update_spawn_to_research_ratio()
 
 
 def gather_turn_information(player, opponent):
@@ -479,11 +481,15 @@ def agent(observation, configuration, include_debug_for_vis=True):
     # actions, debug_info = old_unit_action_resolution(player, opponent)
     actions, debug_info = unit_action_resolution(LogicGlobals.player, LogicGlobals.opponent)
 
+    num_ct_can_act_this_turn = sum(city_tile.can_act() for _, city in LogicGlobals.player.cities.items() for city_tile in city.citytiles)
     spawned_this_round = 0
     for _, city in sorted(LogicGlobals.player.cities.items(), key=lambda pair: -int(pair[0].split("_")[1])):
         for city_tile in city.citytiles:
             if city_tile.can_act():
-                if len(LogicGlobals.player.units) + spawned_this_round < LogicGlobals.player.city_tile_count:
+                if len(LogicGlobals.player.units) == 0 or LogicGlobals.player.researched_uranium() or (
+                        spawned_this_round <= num_ct_can_act_this_turn * STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+                        and len(LogicGlobals.player.units) + spawned_this_round < LogicGlobals.player.city_tile_count
+                ):
                     if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                         actions.append(city_tile.build_worker())
                         spawned_this_round += 1

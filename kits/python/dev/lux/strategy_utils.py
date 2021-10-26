@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 import statistics
 from itertools import chain
 import getpass
@@ -48,7 +49,7 @@ def set_unit_cluster_to_defend_id(unit, player):
             else:
                 closest_cluster = None
 
-            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
+            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER'][f'N_UNITS_SPAWN_BEFORE_COLONIZE_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}']):
                 unit.cluster_to_defend_id = min(
                     LogicGlobals.clusters_to_colonize,
                     key=lambda c: (unit.pos.distance_to(c.center_pos), c.id if getpass.getuser() == 'Paul' else 0)  # NOTE: Currently does NOT prefer unlocked resources
@@ -202,3 +203,34 @@ def find_clusters_to_colonize_rbs():
             ), -c.center_pos.distance_to(unit_med_pos), c.id if getpass.getuser() == 'Paul' else 0)
         )[0]
         LogicGlobals.clusters_to_colonize_rbs[cluster_to_defend.id] = set()
+
+
+def update_spawn_to_research_ratio():
+    if (LogicGlobals.game_state.turn < STRATEGY_HYPERPARAMETERS['NUM_TURNS_BEFORE_RESEARCH_EXP_FIT']) or ((LogicGlobals.player.research_points - LogicGlobals.RP_AT_LAST_ADJUSTMENT) < STRATEGY_HYPERPARAMETERS["NUM_RP_BETWEEN_RATIO_ADJUSTMENTS"]):
+        return
+    elif LogicGlobals.player.researched_uranium() or LogicGlobals.opponent.researched_uranium():
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_STARTER_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+        return
+
+    m1, b1 = np.polyfit(np.arange(len(LogicGlobals.game_state.player_rp)) + 1, np.log(LogicGlobals.game_state.player_rp), 1)
+    m2, b2 = np.polyfit(np.arange(len(LogicGlobals.game_state.opponent_rp)) + 1, np.log(LogicGlobals.game_state.opponent_rp), 1)
+    if m1 <= 0 or m2 <= 0:
+        return
+    player_research_turn = (np.log(GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["URANIUM"]) - b1) / m1
+    opponent_research_turn = (np.log(GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["URANIUM"]) - b2) / m2
+    if player_research_turn > opponent_research_turn:
+        LogicGlobals.RP_AT_LAST_ADJUSTMENT = LogicGlobals.player.research_points
+        # STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = max(
+        #     STRATEGY_HYPERPARAMETERS["STARTER"][f'DECREASE_SPAWN_TO_RESEARCH_RATIO_AMOUNT_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.neight}'],
+        #     STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]  - STRATEGY_HYPERPARAMETERS["STARTER"][f'DECREASE_SPAWN_TO_RESEARCH_RATIO_AMOUNT_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.neight}']
+        # )
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * (1 - STRATEGY_HYPERPARAMETERS["STARTER"][f'DECREASE_SPAWN_TO_RESEARCH_RATIO_AMOUNT_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.neight}'])
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * (1 + STRATEGY_HYPERPARAMETERS["STARTER"][f'DECREASE_SPAWN_TO_RESEARCH_RATIO_AMOUNT_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.neight}'])
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * (1 + STRATEGY_HYPERPARAMETERS["STARTER"][f'DECREASE_SPAWN_TO_RESEARCH_RATIO_AMOUNT_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.neight}'])
+
+    elif player_research_turn + 10 < opponent_research_turn:
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+        STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_STARTER_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]

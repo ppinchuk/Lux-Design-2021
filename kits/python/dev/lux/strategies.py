@@ -164,7 +164,7 @@ def starter_strategy_old(unit, player):
                 closest_cluster = LogicGlobals.game_state.map.position_to_cluster(closest_city_tile_pos)
             else:
                 closest_cluster = None
-            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER']['N_UNITS_SPAWN_BEFORE_COLONIZE']):
+            if closest_cluster is not None and (closest_cluster.n_workers_sent_to_colonize <= closest_cluster.n_workers_spawned / STRATEGY_HYPERPARAMETERS['STARTER'][f'N_UNITS_SPAWN_BEFORE_COLONIZE{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}']):
                 # if LogicGlobals.game_state.map.height >= 24:
                 #     clusters_to_colonize_this_turn = [c for c in LogicGlobals.clusters_to_colonize if unit.pos.distance_to(c.center_pos) <= (LogicGlobals.game_state.turn * LogicGlobals.radius_for_clusters / STRATEGY_HYPERPARAMETERS[f'QUADRATIC_CUTOFF_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}'])]
                 #     if clusters_to_colonize_this_turn:
