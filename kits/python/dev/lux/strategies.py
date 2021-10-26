@@ -77,6 +77,7 @@ def starter_strategy(unit, player):
             return
 
     if not LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids:  # can happen when all positions are in the process of being built such that no more builders are needed but also there are no cities to manage
+        print(f"Found no task for unit: {unit.id}. Positions already being build: {LogicGlobals.pos_being_built}")
         return
 
     # city_id_to_manage = min(
