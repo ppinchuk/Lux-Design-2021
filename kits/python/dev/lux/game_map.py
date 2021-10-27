@@ -306,9 +306,11 @@ class ResourceCluster:
             )
 
             opponent_distance, player_distance, *__ = distance_to_closest_enemy[pos_closest_to_enemy]
-            self.needs_defending_from_opponent = -player_distance + 1 <= opponent_distance
+            self.needs_defending_from_opponent = -player_distance + 1 >= opponent_distance
         else:
             self.needs_defending_from_opponent = False
+
+        # print(f"Resource cluster at {self.center_pos} needs defending: {self.needs_defending_from_opponent}")
 
         self.city_ids = set()
         self.pos_defended = []
