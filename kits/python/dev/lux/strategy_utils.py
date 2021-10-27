@@ -106,27 +106,29 @@ def set_unit_cluster_to_defend_id(unit, player):
                         if cluster is None:
                             return
                         unit.cluster_to_defend_id = cluster.id
+                        print(f"New cluster to defend was set for unit {unit.id}: {cluster.center_pos} {unit.cluster_to_defend_id}")
                 else:
                     unit.cluster_to_defend_id = closest_cluster.id
+                    print(f"New cluster to defend was set for unit {unit.id}: {closest_cluster.center_pos} {unit.cluster_to_defend_id}")
             else:
                 cluster = find_closest_understaffed_cluster(unit)
                 if cluster is None:
                     return
                 unit.cluster_to_defend_id = cluster.id
-            print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+                print(f"New cluster to defend was set for unit {unit.id}: {cluster.center_pos} {unit.cluster_to_defend_id}")
             return
 
         cluster = find_closest_understaffed_cluster(unit)
 
         if cluster is not None:
             unit.cluster_to_defend_id = cluster.id
-            print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+            print(f"New cluster to defend was set for unit {unit.id}: {cluster.center_pos} ({unit.cluster_to_defend_id})")
         else:
             cluster = find_closest_cluster(unit)
 
         if cluster is not None:
             unit.cluster_to_defend_id = cluster.id
-            print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+            print(f"New cluster to defend was set for unit {unit.id}: {cluster.center_pos} ({unit.cluster_to_defend_id})")
 
 
 # def set_unit_cluster_to_defend_id(unit, player):
