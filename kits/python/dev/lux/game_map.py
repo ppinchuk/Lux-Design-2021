@@ -345,11 +345,11 @@ class Cell:
         self.citytile = None
         self.road = 0
 
-    def has_resource(self, include_wood_that_is_growing=True):
+    def has_resource(self, include_wood_that_is_growing=True, min_amt=0):
         if include_wood_that_is_growing:
-            return self.resource is not None and self.resource.amount > 0
+            return self.resource is not None and self.resource.amount > min_amt
         else:
-            return self.resource is not None and ((self.resource.type != ResourceTypes.WOOD and self.resource.amount > 0) or (self.resource.type == ResourceTypes.WOOD and self.resource.amount >= GAME_CONSTANTS["PARAMETERS"]["MAX_WOOD_AMOUNT"]))
+            return self.resource is not None and ((self.resource.type != ResourceTypes.WOOD and self.resource.amount > min_amt) or (self.resource.type == ResourceTypes.WOOD and self.resource.amount >= GAME_CONSTANTS["PARAMETERS"]["MAX_WOOD_AMOUNT"]))
 
     def is_empty(self):
         return self.citytile is None and not self.has_resource()
