@@ -650,7 +650,7 @@ class Position:
             tiles_not_blocked = {self, pos}
             for p in [self, pos]:
                 cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
-                if cell.citytile is not None:
+                if cell and cell.citytile is not None:
                     city_id = cell.citytile.cityid
                     if city_id in LogicGlobals.player.cities:
                         tiles_not_blocked = tiles_not_blocked | {c.pos for c in LogicGlobals.player.cities[city_id].citytiles}
