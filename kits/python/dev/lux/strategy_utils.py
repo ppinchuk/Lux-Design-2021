@@ -89,6 +89,7 @@ def set_unit_cluster_to_defend_id(unit, player):
             LogicGlobals.CLUSTER_ID_TO_MANAGERS[unit.cluster_to_defend_id] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set()) - {unit.id}
         unit.cluster_to_defend_id = None
         closest_city_tile_pos = unit.pos.find_closest_city_tile(player, game_map=LogicGlobals.game_state.map)
+
         if closest_city_tile_pos is not None:
             closest_cluster = LogicGlobals.game_state.map.position_to_cluster(closest_city_tile_pos)
         else:
@@ -115,11 +116,18 @@ def set_unit_cluster_to_defend_id(unit, player):
             print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
             return
 
-        cluster = find_closest_cluster(unit)
+        cluster = find_closest_understaffed_cluster(unit)
 
         if cluster is not None:
             unit.cluster_to_defend_id = cluster.id
             print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+        else:
+            cluster = find_closest_cluster(unit)
+
+        if cluster is not None:
+            unit.cluster_to_defend_id = cluster.id
+            print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+
 
 # def set_unit_cluster_to_defend_id(unit, player):
 #     if unit.cluster_to_defend_id is None or unit.cluster_to_defend_id not in {rc.id for rc in LogicGlobals.game_state.map.resource_clusters}:
