@@ -274,7 +274,7 @@ class ResourceCluster:
         #
         if self.sort_position is None:
             opponent_positions = opponent.city_pos | opponent.unit_pos
-            if opponent_positions:
+            if opponent_positions and (not opponent_positions & self.pos_to_defend):
                 # closest_opponent_pos = min(
                 #     opponent_positions,
                 #     key=lambda p: (self.center_pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
@@ -284,7 +284,13 @@ class ResourceCluster:
                     key=lambda p: (self.center_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
                 )
             else:
-                closest_opponent_pos = Position(self.max_loc[0] + 1, self.max_loc[1] + 1)
+                to_search_pos = LogicGlobals.player.city_pos | LogicGlobals.player.unit_pos
+                if not to_search_pos:
+                    to_search_pos = {Position(0, 0)}
+                closest_opponent_pos = min(
+                    to_search_pos,
+                    key=lambda p: (self.center_pos.tile_distance_to(p, positions_to_avoid=self.resource_positions), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
+                )
         else:
             closest_opponent_pos = self.sort_position
 
@@ -297,7 +303,7 @@ class ResourceCluster:
 
         if LogicGlobals.opponent.units:
             distance_to_closest_enemy = {
-                p: (min(p.distance_to(u.pos) for u in LogicGlobals.opponent.units), -min(p.distance_to(u.pos) for u in LogicGlobals.player.units), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
+                p: (min(p.distance_to(u.pos) for u in LogicGlobals.opponent.units), -min(p.distance_to(u.pos) for u in LogicGlobals.player.units) if LogicGlobals.player.units else 0, LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
                 for p in self.pos_to_defend
             }
             pos_closest_to_enemy = min(

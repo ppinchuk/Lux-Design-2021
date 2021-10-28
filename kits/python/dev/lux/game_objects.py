@@ -173,6 +173,7 @@ class Unit:
         self.cluster_to_defend_id = None
         self.current_strategy = StrategyTypes.STARTER
         self.previous_pos = deque(maxlen=2)
+        self._collection_maximum_for_building = GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
         self.__dict__.update(UNIT_CACHE.get(self.id, {}))
         if self.pos not in self.previous_pos:
             self.previous_pos.append(self.pos)
@@ -190,6 +191,7 @@ class Unit:
                 'cluster_to_defend_id',
                 'current_strategy',
                 'previous_pos',
+                '_collection_maximum_for_building'
             ]
         }
 
@@ -214,6 +216,7 @@ class Unit:
         self.cluster_to_defend = None
         self.cluster_to_defend_id = None
         self.previous_pos = deque(maxlen=2)
+        self._collection_maximum_for_building = GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
         self.save_state()
 
     def is_worker(self) -> bool:
@@ -278,10 +281,6 @@ class Unit:
         if not self.task_q:
             return False
         return (self.task_q[0][0] == ValidActions.TRANSFER) or (self.task_q[0][0] == ValidActions.MANAGE and self.num_resources > 0) or (LogicGlobals.game_state.turns_until_next_night >= STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER'] and (self.task_q[0][0] == ValidActions.BUILD)) #  or (len(self.task_q) >= 2 and self.task_q[1][0] == ValidActions.BUILD)))
-
-    @property
-    def has_enough_resources_to_manage_city(self):
-        return self.num_resources > 0.9 * GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str]
 
     def can_make_it_back_to_city_before_it_dies(self, city_id, closest_citytile_to_unit=None, mult=1.1):
         if closest_citytile_to_unit is None:
@@ -383,6 +382,20 @@ class Unit:
                 return None, None
 
         elif action == ValidActions.BUILD:
+            self._collection_maximum_for_building = GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
+            for p in target.adjacent_positions(include_center=True):
+                cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
+                if cell is not None and cell.has_resource():
+                    resource_left = max(
+                        0, cell.resource.amount - GAME_CONSTANTS['PARAMETERS']['WORKER_COLLECTION_RATE'][f'{cell.resource.type.upper()}']
+                    )  # TODO: assume someone else collects at it once - this is tunable
+                    self._collection_maximum_for_building = max(
+                        0, self._collection_maximum_for_building
+                           - min(
+                                    GAME_CONSTANTS['PARAMETERS']['WORKER_COLLECTION_RATE'][f'{cell.resource.type.upper()}'],
+                                    resource_left
+                        )
+                    )
             if not self.has_enough_resources_to_build:
                 closest_resource_pos = self.closest_resource_pos_for_building(target, game_state, player)
                 if closest_resource_pos is not None:
@@ -412,7 +425,12 @@ class Unit:
                     #     self.push_task((ValidActions.MOVE, closest_city_pos))
                     #     return self.propose_action(player, game_state)
                     else:
-                        return None, None  # TODO: What should we do if worker is too far away from resource to get there before night time and there is no city to dump resources into?
+                        ct_pos = self.pos.find_closest_city_tile(LogicGlobals.player, game_map=LogicGlobals.game_state.map)
+                        if ct_pos is not None and self.can_make_it_to_pos_without_dying(ct_pos) and self.turn_distance_to(ct_pos) < LogicGlobals.game_state.turns_until_next_day:
+                            self.push_task((ValidActions.MOVE, ct_pos))
+                            return self.propose_action(player, game_state)
+                        else:
+                            return None, None  # TODO: What should we do if worker is too far away from resource to get there before night time and there is no city to dump resources into?
             if game_state.turns_until_next_night < STRATEGY_HYPERPARAMETERS['BUILD_NIGHT_TURN_BUFFER']:
                 return None, None
 
@@ -461,6 +479,7 @@ class Unit:
     def remove_next_build_action(self):
         if self.current_task[0] == ValidActions.BUILD:
             LogicGlobals.pos_being_built.discard(self.current_task[1])
+            self._collection_maximum_for_building = GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
             self.load_next_task()
             return
 
@@ -472,6 +491,7 @@ class Unit:
                     self.task_q = deque()
                 else:
                     self.task_q = deque(list(self.task_q)[ind + 1:])
+                self._collection_maximum_for_building = GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
                 self.load_next_task()
                 break
 
@@ -555,6 +575,9 @@ class Unit:
         elif action == ValidActions.COLLECT:
             if game_map.get_cell_by_pos(target).resource is None:
                 self.current_task = None
+            elif self.is_building() and self.num_resources >= self._collection_maximum_for_building:  #  self.cargo_space_left() <= 0:
+                self.current_task = None
+                self._collection_maximum_for_building = GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
             elif self.cargo_space_left() <= 0:
                 self.current_task = None
             elif self.task_q and self.task_q[0][0] == ValidActions.MANAGE:
@@ -632,7 +655,20 @@ class Unit:
 
     @property
     def has_enough_resources_to_build(self) -> bool:
-        return self.num_resources >= GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
+        return self.num_resources >= self._collection_maximum_for_building  # GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]
+
+    @property
+    def has_enough_resources_to_manage_city(self):
+        if self.num_resources > 0.9 * GAME_CONSTANTS["PARAMETERS"]["RESOURCE_CAPACITY"][self.type_str]:
+            return True
+
+        if self.current_task and self.current_task[0] == ValidActions.MANAGE:
+            city = LogicGlobals.player.cities.get(self.current_task[1])
+            if city:
+                tot_fuel_per_night = city.light_upkeep * GAME_CONSTANTS["PARAMETERS"]["NIGHT_LENGTH"]
+                num_managers = max(1, len(city.managers))
+                return self.total_fuel >= tot_fuel_per_night / num_managers
+        return False
 
     def closest_resource_pos_for_building(self, build_pos, game_state, player):
         if self.num_resources >= 0.75 * GAME_CONSTANTS["PARAMETERS"]["CITY_BUILD_COST"]:

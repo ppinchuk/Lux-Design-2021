@@ -31,6 +31,7 @@ class TestBuildLogic:
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 4 0 0 100 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -44,7 +45,7 @@ class TestBuildLogic:
         # 0 __ __ __ __ u1 __ __
         # 1 __ __ __ wo __ __ __
         # 2 __ __ __ c1 c1 __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
@@ -63,6 +64,7 @@ class TestBuildLogic:
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 4 0 0 100 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -75,7 +77,7 @@ class TestBuildLogic:
         # 0 __ __ __ __ u1 __ __
         # 1 __ __ __ wo __ __ __
         # 2 __ __ __ c1 __ __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
@@ -92,10 +94,11 @@ class TestBuildLogic:
             assert u.task_q[0][1] == gm.Position(4, 2)
 
     @pytest.mark.parametrize("initialize_game", [12], indirect=['initialize_game'])
-    def test_switch_builds_while_building(self, initialize_game):
+    def test_not_switch_builds_if_about_to_build(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 4 0 0 100 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -109,7 +112,7 @@ class TestBuildLogic:
         # 0 __ __ __ __ u1 __ __
         # 1 __ __ __ wo __ __ __
         # 2 __ __ __ c1 c1 __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
@@ -128,6 +131,7 @@ class TestBuildLogic:
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 4 1 0 100 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -140,7 +144,7 @@ class TestBuildLogic:
         # 0 __ __ __ __ __ __ __
         # 1 __ __ __ wo u1 __ __
         # 2 __ __ __ c1 __ __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
@@ -150,17 +154,15 @@ class TestBuildLogic:
         )
 
         for u in c.LogicGlobals.player.units:
-            assert u.current_task[0] == c.ValidActions.MOVE
-            assert u.current_task[1] == gm.Position(4, 2)
-            assert len(u.task_q) == 1
-            assert u.task_q[0][0] == c.ValidActions.BUILD
-            assert u.task_q[0][1] == gm.Position(4, 2)
+            assert u.current_task[0] == c.ValidActions.BUILD
+            assert u.current_task[1] == gm.Position(4, 1)
 
     @pytest.mark.parametrize("initialize_game", [12], indirect=['initialize_game'])
     def test_switch_builds_while_collecting(self, initialize_game):
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 3 0 0 60 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -174,7 +176,7 @@ class TestBuildLogic:
         # 0 __ __ __ u1 __ __ __
         # 1 __ __ __ wo __ __ __
         # 2 __ __ __ c1 c1 __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
@@ -193,6 +195,7 @@ class TestBuildLogic:
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 3 1 0 80 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -205,7 +208,7 @@ class TestBuildLogic:
         # 0 __ __ __ u1 __ __ __
         # 1 __ __ __ wo __ __ __
         # 2 __ __ __ c1 __ __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
@@ -226,6 +229,7 @@ class TestBuildLogic:
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 4 0 0 60 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -239,7 +243,7 @@ class TestBuildLogic:
         # 0 __ __ __ __ u1 __ __
         # 1 __ __ __ wo __ __ __
         # 2 __ __ __ c1 c1 __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
@@ -260,6 +264,7 @@ class TestBuildLogic:
         c.LogicGlobals.game_state.update(
             [
                 'u 0 0 u_1 4 0 0 80 0 0',
+                'u 0 1 u_2 2 3 0 100 0 0',
                 'r wood 3 1 900',
                 'c 0 c_1 0 23',
                 'ct 0 c_1 3 2 0',
@@ -272,7 +277,7 @@ class TestBuildLogic:
         # 0 __ __ __ __ u1 __ __
         # 1 __ __ __ wo __ __ __
         # 2 __ __ __ c1 __ __ __
-        # 3 __ __ __ __ __ __ __
+        # 3 __ __ u2 __ __ __ __
         # 4 __ __ __ __ c2 __ __
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __

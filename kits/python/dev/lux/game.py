@@ -99,7 +99,7 @@ class Game:
         if self.map.resource_clusters is None:
             self.map.find_clusters()
         self.map.update_clusters(LogicGlobals.opponent)
-        if self.turn == 0:
+        if self.turn == 0 and LogicGlobals.player.city_pos:
             starter_pos = list(LogicGlobals.player.city_pos)[0]
             LogicGlobals.x_mult = 1 if starter_pos.x > self.map.width // 2 else -1
             LogicGlobals.y_mult = 1 if starter_pos.y > self.map.height // 2 else -1

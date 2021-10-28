@@ -124,9 +124,9 @@ class TestResourceCluster:
         # 6 __ __ __ __ __ __ __
 
         for cluster in c.LogicGlobals.game_state.map.resource_clusters:
-            assert cluster.pos_to_defend[0] == gm.Position(1, 1)
-            assert gm.Position(1, 0) in cluster.pos_to_defend[1:]
-            assert gm.Position(0, 1) in cluster.pos_to_defend[1:]
+            assert gm.Position(1, 1) in cluster.pos_to_defend[0:]
+            assert gm.Position(1, 0) in cluster.pos_to_defend[0:]
+            assert gm.Position(0, 1) in cluster.pos_to_defend[0:]
 
     @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])
     def test_positions_to_defend_by_edge2(self, initialize_game):
@@ -146,11 +146,11 @@ class TestResourceCluster:
         # 6 __ __ __ __ __ __ __
 
         for cluster in c.LogicGlobals.game_state.map.resource_clusters:
-            assert cluster.pos_to_defend[0] == gm.Position(2, 2)
-            assert gm.Position(2, 1) in cluster.pos_to_defend[1:3]
-            assert gm.Position(1, 2) in cluster.pos_to_defend[1:3]
-            assert gm.Position(0, 2) in cluster.pos_to_defend[3:]
-            assert gm.Position(2, 0) in cluster.pos_to_defend[3:]
+            assert gm.Position(2, 2) in cluster.pos_to_defend[0:]
+            assert gm.Position(2, 1) in cluster.pos_to_defend[0:]
+            assert gm.Position(1, 2) in cluster.pos_to_defend[0:]
+            assert gm.Position(0, 2) in cluster.pos_to_defend[0:]
+            assert gm.Position(2, 0) in cluster.pos_to_defend[0:]
 
     @pytest.mark.skip("Build strategy is different now")
     @pytest.mark.parametrize("initialize_game", [7], indirect=['initialize_game'])

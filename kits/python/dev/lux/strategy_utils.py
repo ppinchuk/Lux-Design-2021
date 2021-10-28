@@ -297,3 +297,8 @@ def update_spawn_to_research_ratio():
         STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
         STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
         STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = STRATEGY_HYPERPARAMETERS["STARTER"][f"N_UNITS_SPAWN_BEFORE_COLONIZE_STARTER_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+
+
+def update_builder_to_manager_ratio():
+    slope = (STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] - 1) / 350
+    STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] = max(0, min(1, slope * (LogicGlobals.game_state.turn - 350) + STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_STARTER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]))
