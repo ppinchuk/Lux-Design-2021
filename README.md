@@ -52,10 +52,13 @@ The [kits](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits)
 
 - [Python](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits/python)
 - [Javascript](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits/js)
+- [Rust](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits/rust) (maintained by [@tye-singwa](https://github.com/tye-singwa))
 - [C++](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits/cpp)
 - [Java](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits/java)
 - [Typescript](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits/ts)
 - [Kotlin](https://github.com/Lux-AI-Challenge/Lux-Design-2021/tree/master/kits/kotlin) (maintained by [@Tolsi](https://github.com/Tolsi))
+
+There are also many [community provided tools](#Community-Tools) to help people build better bots, feel free to check those out and use whatever suits your needs
 
 Want to use another language but it's not supported? Feel free to suggest that language to our issues or even better, create a starter kit for the community to use and make a PR to this repository. See our [CONTRIBUTING.md document](https://github.com/Lux-AI-Challenge/Lux-Design-2021/blob/master/CONTRIBUTING.md) for more information on this.
 
@@ -115,6 +118,17 @@ RUN pip3 install <package_name>
 ```
 
 After changing the Dockerfile, run `bash cli.sh clean` to clean the old docker stuff and then use `cli.sh` as usual.
+
+## Community-Tools
+
+This is a list of all community tools built by our community!
+
+- [Lux AI Python Gym](https://github.com/glmcdona/LuxPythonEnvGym/): A OpenAI compliant gym that replicates the entire Lux AI 2021 design. About 45x faster than the official environment for python agents and makes it easier to try more ML / search heavy approaches to the competition, maintained by [glmcdona](https://github.com/glmcdona/)
+- [Optics](https://github.com/rooklift/optics): A simple, fast, top-down-view visualizer by [rooklift](https://github.com/rooklift/)
+- [Command Line Visualizer](https://github.com/nathanbabcock/lux-ai-vis): A streamlined tool to watch a replay by running a single command in the CLI
+- [Public Notebooks](https://www.kaggle.com/c/lux-ai-2021/code): A collection of all public notebooks (in python usually) where competitors share their ideas, code, and more. There are all kinds of solutions here, from RL, Imitation Learning, to rule based approaches.
+- [Submission Statistics](https://lux-ai-stats.herokuapp.com/): A tool to track any submission to the competition, showing score change over time, wins and losses etc.
+
 
 ## Contributing
 
