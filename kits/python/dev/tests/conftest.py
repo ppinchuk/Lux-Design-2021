@@ -1,3 +1,7 @@
+import sys
+from path import Path
+if Path(__file__).parent.parent.absolute().as_posix() not in sys.path:
+    sys.path.append(Path(__file__).parent.parent.absolute().as_posix())
 import pytest
 import lux.game_map as gm
 import lux.game_objects as go
