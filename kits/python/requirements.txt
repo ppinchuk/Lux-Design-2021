@@ -1,3 +1,4 @@
 numpy==1.16.6
 path==16.2.0
 kaggle_environments==1.8.12
+requests==2.22.0
