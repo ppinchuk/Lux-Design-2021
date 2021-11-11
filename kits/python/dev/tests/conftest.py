@@ -2,6 +2,8 @@ import sys
 from path import Path
 if str(Path(__file__).parent.parent.abspath()) not in sys.path:
     sys.path.append(str(Path(__file__).parent.parent.abspath()))
+if str((Path(__file__).parent.parent.parent / 'simple').abspath()) not in sys.path:
+    sys.path.append(str((Path(__file__).parent.parent.parent / 'simple').abspath()))
 import pytest
 import lux.game_map as gm
 import lux.game_objects as go
