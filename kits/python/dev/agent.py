@@ -5,7 +5,7 @@ import sys
 # print("SOME RANDOM NUMBER:", random.random(), file=sys.stderr)
 from lux.constants import ValidActions, log, print, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
 from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy, set_unit_task, set_unit_strategy
-from lux.strategy_utils import compute_tbs_com, update_spawn_to_research_ratio, update_builder_to_manager_ratio
+from lux.strategy_utils import move_unit_in_direction, switch_builds_if_needed
 from collections import deque, Counter, UserDict
 from itertools import chain
 from lux.annotate import add_annotations
@@ -170,88 +170,7 @@ def unit_action_resolution(player, opponent):
             # unit.set_task_from_strategy(player)
             # set_unit_task(unit, player)
 
-    units_that_should_not_switch_builds = {
-        u.id for u in LogicGlobals.player.units if u.current_task and u.current_task[0] == ValidActions.BUILD and u.current_task[1] == u.pos and u.has_enough_resources_to_build
-    }
-    for cluster_id, builders in LogicGlobals.CLUSTER_ID_TO_BUILDERS.items():
-        cluster_to_defend = LogicGlobals.game_state.map.get_cluster_by_id(cluster_id)
-        if cluster_to_defend is None:
-            continue
-        units_that_should_switch_builds = set()
-        if not cluster_to_defend.needs_defending_from_opponent:
-            pos_should_be_built = {
-                pos for pos in LogicGlobals.game_state.map.get_cluster_by_id(cluster_id).pos_to_defend
-                if (
-                        (pos not in LogicGlobals.pos_being_built)
-                        and (LogicGlobals.game_state.map.get_cell_by_pos(pos).is_empty())
-                        and pos not in LogicGlobals.opponent.unit_pos
-                )
-            }
-            for unit_id in builders - units_that_should_not_switch_builds:
-                unit = LogicGlobals.player.get_unit_by_id(unit_id)
-                if unit is None:
-                    continue
-                current_build_pos = None
-                if unit.current_task and unit.current_task[0] == ValidActions.BUILD:
-                    current_build_pos = unit.current_task[1]
-                else:
-                    for task in unit.task_q:
-                        if task[0] == ValidActions.BUILD:
-                            current_build_pos = task[1]
-                            break
-
-                if current_build_pos is None:
-                    print(f"BUILDER {unit.id} assigned to cluster {unit.cluster_to_defend_id} has no build task!!!")
-                else:
-                    if (current_build_pos in LogicGlobals.opponent.city_pos or current_build_pos in LogicGlobals.opponent.unit_pos) or (unit.pos.distance_to(current_build_pos) > unit.pos.distance_to(p) for p in pos_should_be_built):
-                        units_that_should_switch_builds.add(unit)
-                        pos_should_be_built.add(current_build_pos)
-            if units_that_should_switch_builds:
-                units_that_should_switch_builds = sorted(
-                    units_that_should_switch_builds,
-                    key=lambda u: -u.cargo_space_left()
-                )
-        else:
-            pos_should_be_built = set()
-            for pos in LogicGlobals.game_state.map.get_cluster_by_id(cluster_id).pos_to_defend:
-                if len(pos_should_be_built) >= len(builders):
-                    break
-                cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
-                if cell.is_empty() and cell.pos not in LogicGlobals.opponent.unit_pos:
-                    pos_should_be_built.add(cell.pos)
-
-            # if len(pos_should_be_built) < len(builders):
-            #     continue
-
-            for unit_id in builders - units_that_should_not_switch_builds:
-                unit = LogicGlobals.player.get_unit_by_id(unit_id)
-                if unit is None:
-                    continue
-                current_build_pos = None
-                if unit.current_task and unit.current_task[0] == ValidActions.BUILD:
-                    current_build_pos = unit.current_task[1]
-                else:
-                    for task in unit.task_q:
-                        if task[0] == ValidActions.BUILD:
-                            current_build_pos = task[1]
-                            break
-                if current_build_pos is None:
-                    print(f"BUILDER {unit.id} assigned to cluster {unit.cluster_to_defend_id} has no build task!!!")
-                else:
-                    if current_build_pos in LogicGlobals.opponent.city_pos or current_build_pos in LogicGlobals.opponent.unit_pos:
-                        units_that_should_switch_builds.add(unit)
-                    elif current_build_pos in pos_should_be_built:
-                        pos_should_be_built.discard(current_build_pos)
-                    else:
-                        units_that_should_switch_builds.add(unit)
-
-        for unit in units_that_should_switch_builds:
-            if pos_should_be_built:
-                new_target = min(pos_should_be_built, key=lambda p: (unit.pos.distance_to(p), -sum(ap in LogicGlobals.player.city_pos for ap in p.adjacent_positions(include_center=False, include_diagonals=False)), p.x, p.y))
-                pos_should_be_built.discard(new_target)
-                # print(f"Switching BUILDER {unit.id} target to {new_target}")
-                unit.remove_next_build_action()
-                unit.set_task(ValidActions.BUILD, new_target)
+    switch_builds_if_needed()
 
     # for unit in player.units:
     #     action, target = unit.propose_action(player, LogicGlobals.game_state)
@@ -357,9 +276,10 @@ def unit_action_resolution(player, opponent):
                 continue
             if pos in player.city_pos:
                 for unit, direction in units:
-                    unit.turns_spent_waiting_to_move = 0
-                    actions.append(unit.move(direction, logs=debug_info))
-                    units_with_movement_resolved.add(unit)
+                    move_unit_in_direction(
+                        unit, direction, actions, debug_info,
+                        register=units_with_movement_resolved
+                    )
                 pos_to_discard.append(pos)
             elif len(units) > 1:
                 unit, direction = max(
@@ -372,9 +292,10 @@ def unit_action_resolution(player, opponent):
                         pair[0].id if getpass.getuser() == 'Paul' else 0
                     )
                 )
-                unit.turns_spent_waiting_to_move = 0
-                actions.append(unit.move(direction, logs=debug_info))
-                units_with_movement_resolved.add(unit)
+                move_unit_in_direction(
+                    unit, direction, actions, debug_info,
+                    register=units_with_movement_resolved
+                )
                 blocked_positions.add(pos)
                 pos_to_discard.append(pos)
 
@@ -399,9 +320,10 @@ def unit_action_resolution(player, opponent):
             continue
         if pos in player.city_pos:
             for unit, direction in units:
-                unit.turns_spent_waiting_to_move = 0
-                actions.append(unit.move(direction, logs=debug_info))
-                units_with_movement_resolved.add(unit)
+                move_unit_in_direction(
+                    unit, direction, actions, debug_info,
+                    register=units_with_movement_resolved
+                )
         else:
             unit, direction = max(
                 units,
@@ -413,9 +335,10 @@ def unit_action_resolution(player, opponent):
                     pair[0].id if getpass.getuser() == 'Paul' else 0
                 )
             )
-            unit.turns_spent_waiting_to_move = 0
-            actions.append(unit.move(direction, logs=debug_info))
-            units_with_movement_resolved.add(unit)
+            move_unit_in_direction(
+                unit, direction, actions, debug_info,
+                register=units_with_movement_resolved
+            )
             blocked_positions.add(pos)
 
     units_wanting_to_move = units_wanting_to_move - units_with_movement_resolved

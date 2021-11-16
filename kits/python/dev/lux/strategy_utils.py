@@ -3,7 +3,7 @@ import numpy as np
 import statistics
 from itertools import chain
 import getpass
-from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print, GAME_CONSTANTS
+from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print, GAME_CONSTANTS, ValidActions
 from .game_map import Position
 
 
@@ -170,6 +170,97 @@ def set_unit_cluster_to_defend_id(unit, player):
 #             if cluster is not None:
 #                 unit.cluster_to_defend_id = cluster.id
 #         print(f"New cluster to defend was set for unit {unit.id}: {unit.cluster_to_defend_id}")
+
+
+def switch_builds_if_needed():
+    units_that_should_not_switch_builds = {
+        u.id for u in LogicGlobals.player.units if u.current_task and u.current_task[0] == ValidActions.BUILD and u.current_task[1] == u.pos and u.has_enough_resources_to_build
+    }
+    for cluster_id, builders in LogicGlobals.CLUSTER_ID_TO_BUILDERS.items():
+        cluster_to_defend = LogicGlobals.game_state.map.get_cluster_by_id(cluster_id)
+        if cluster_to_defend is None:
+            continue
+        units_that_should_switch_builds = set()
+        if not cluster_to_defend.needs_defending_from_opponent:
+            pos_should_be_built = {
+                pos for pos in LogicGlobals.game_state.map.get_cluster_by_id(cluster_id).pos_to_defend
+                if (
+                        (pos not in LogicGlobals.pos_being_built)
+                        and (LogicGlobals.game_state.map.get_cell_by_pos(pos).is_empty())
+                        and pos not in LogicGlobals.opponent.unit_pos
+                )
+            }
+            for unit_id in builders - units_that_should_not_switch_builds:
+                unit = LogicGlobals.player.get_unit_by_id(unit_id)
+                if unit is None:
+                    continue
+                current_build_pos = None
+                if unit.current_task and unit.current_task[0] == ValidActions.BUILD:
+                    current_build_pos = unit.current_task[1]
+                else:
+                    for task in unit.task_q:
+                        if task[0] == ValidActions.BUILD:
+                            current_build_pos = task[1]
+                            break
+
+                if current_build_pos is None:
+                    print(f"BUILDER {unit.id} assigned to cluster {unit.cluster_to_defend_id} has no build task!!!")
+                else:
+                    if (current_build_pos in LogicGlobals.opponent.city_pos or current_build_pos in LogicGlobals.opponent.unit_pos) or (unit.pos.distance_to(current_build_pos) > unit.pos.distance_to(p) for p in pos_should_be_built):
+                        units_that_should_switch_builds.add(unit)
+                        pos_should_be_built.add(current_build_pos)
+            if units_that_should_switch_builds:
+                units_that_should_switch_builds = sorted(
+                    units_that_should_switch_builds,
+                    key=lambda u: -u.cargo_space_left()
+                )
+        else:
+            pos_should_be_built = set()
+            for pos in LogicGlobals.game_state.map.get_cluster_by_id(cluster_id).pos_to_defend:
+                if len(pos_should_be_built) >= len(builders):
+                    break
+                cell = LogicGlobals.game_state.map.get_cell_by_pos(pos)
+                if cell.is_empty() and cell.pos not in LogicGlobals.opponent.unit_pos:
+                    pos_should_be_built.add(cell.pos)
+
+            # if len(pos_should_be_built) < len(builders):
+            #     continue
+
+            for unit_id in builders - units_that_should_not_switch_builds:
+                unit = LogicGlobals.player.get_unit_by_id(unit_id)
+                if unit is None:
+                    continue
+                current_build_pos = None
+                if unit.current_task and unit.current_task[0] == ValidActions.BUILD:
+                    current_build_pos = unit.current_task[1]
+                else:
+                    for task in unit.task_q:
+                        if task[0] == ValidActions.BUILD:
+                            current_build_pos = task[1]
+                            break
+                if current_build_pos is None:
+                    print(f"BUILDER {unit.id} assigned to cluster {unit.cluster_to_defend_id} has no build task!!!")
+                else:
+                    if current_build_pos in LogicGlobals.opponent.city_pos or current_build_pos in LogicGlobals.opponent.unit_pos:
+                        units_that_should_switch_builds.add(unit)
+                    elif current_build_pos in pos_should_be_built:
+                        pos_should_be_built.discard(current_build_pos)
+                    else:
+                        units_that_should_switch_builds.add(unit)
+
+        for unit in units_that_should_switch_builds:
+            if pos_should_be_built:
+                new_target = min(pos_should_be_built, key=lambda p: (unit.pos.distance_to(p), -sum(ap in LogicGlobals.player.city_pos for ap in p.adjacent_positions(include_center=False, include_diagonals=False)), p.x, p.y))
+                pos_should_be_built.discard(new_target)
+                # print(f"Switching BUILDER {unit.id} target to {new_target}")
+                unit.remove_next_build_action()
+                unit.set_task(ValidActions.BUILD, new_target)
+
+
+def move_unit_in_direction(unit, direction, actions, debug_info, register):
+    unit.turns_spent_waiting_to_move = 0
+    actions.append(unit.move(direction, logs=debug_info))
+    register.add(unit)
 
 
 def compute_tbs_com(game_map):
