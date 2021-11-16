@@ -236,48 +236,6 @@ def city_actions(actions):
                         actions.append(city_tile.research())
                         LogicGlobals.player.research_points += 1
 
-    # for _, city in LogicGlobals.player.cities.items():
-    #     for city_tile in city.citytiles:
-    #         if city_tile.can_act():
-    #             if len(LogicGlobals.player.units) < LogicGlobals.player.city_tile_count:
-    #                 if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
-    #                     actions.append(city_tile.build_worker())
-    #                     cluster = LogicGlobals.game_state.map.position_to_cluster(city_tile.pos)
-    #                     if cluster is not None:
-    #                         cluster.n_workers_spawned += 1
-    #                 elif LogicGlobals.player.current_strategy == StrategyTypes.TIME_BASED:
-    #                     if city_tile.pos in LogicGlobals.TBS_citytiles:
-    #                         actions.append(city_tile.build_worker())
-    #                 elif LogicGlobals.player.current_strategy == StrategyTypes.RESEARCH_BASED:
-    #                     if city_tile.cluster_to_defend_id is not None:
-    #                         existing_carts = LogicGlobals.RBS_cluster_carts.get(city_tile.cluster_to_defend_id, set())
-    #                         if len(existing_carts) < STRATEGY_HYPERPARAMETERS['RBS'][LogicGlobals.RBS_rtype.upper()]['MAX_CARTS_PER_CLUSTER']:
-    #                             actions.append(city_tile.build_cart())
-    #                             existing_carts.add(f"Pending_cart_{city_tile.pos}")
-    #                             LogicGlobals.RBS_cluster_carts[city_tile.cluster_to_defend_id] = existing_carts
-    #                             continue
-    #                     if city_tile.pos in LogicGlobals.RBS_citytiles:
-    #                         actions.append(city_tile.build_worker())
-    #             else:
-    #                 if LogicGlobals.player.current_strategy == StrategyTypes.STARTER and not LogicGlobals.player.researched_uranium():
-    #                     actions.append(city_tile.research())
-    #                     LogicGlobals.player.research_points += 1
-
-    # for _, city in LogicGlobals.player.cities.items():
-    #     for city_tile in city.citytiles:
-    #         if city_tile.can_act():
-    #             if len(LogicGlobals.player.units) < LogicGlobals.player.city_tile_count:
-    #                 if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
-    #                     cluster = LogicGlobals.game_state.map.get_cluster_by_id(city_tile.cluster_to_defend_id)
-    #                     if cluster is not None:
-    #                         if len(LogicGlobals.CLUSTER_ID_TO_BUILDERS[cluster.id]) + len(LogicGlobals.CLUSTER_ID_TO_MANAGERS[cluster.id]) < len(cluster.pos_defended_by_player):
-    #                             actions.append(city_tile.build_worker())
-    #                             cluster.n_workers_spawned += 1
-    #                             continue
-    #             if LogicGlobals.player.current_strategy == StrategyTypes.STARTER and not LogicGlobals.player.researched_uranium():
-    #                 actions.append(city_tile.research())
-    #                 LogicGlobals.player.research_points += 1
-
     return actions
 
 
