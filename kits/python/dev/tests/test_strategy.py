@@ -50,7 +50,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -82,7 +82,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -117,7 +117,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -149,7 +149,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -181,7 +181,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -213,7 +213,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -248,7 +248,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -282,7 +282,7 @@ class TestBuildLogic:
         # 5 __ __ __ __ __ __ __
         # 6 __ __ __ __ __ __ __
 
-        __ = agent.unit_action_resolution(
+        __ = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 

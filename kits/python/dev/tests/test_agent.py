@@ -49,7 +49,7 @@ class TestManageAction:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -81,7 +81,7 @@ class TestManageAction:
             unit.set_task(*unit_actions_this_turn[unit.id])
             unit.task_q = deque([(c.ValidActions.MANAGE, 'c_1')])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -115,7 +115,7 @@ class TestManageAction:
             unit.set_task(*unit_actions_this_turn[unit.id])
             unit.task_q = deque([(c.ValidActions.MANAGE, 'c_1')])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -148,7 +148,7 @@ class TestManageAction:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -181,7 +181,7 @@ class TestManageAction:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -209,7 +209,7 @@ class TestUnitMovement:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -239,7 +239,7 @@ class TestUnitMovement:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -280,7 +280,7 @@ class TestUnitMovement:
             for unit in c.LogicGlobals.player.units:
                 unit.set_task(*unit_actions_this_turn[unit.id])
 
-            actions, debug = agent.unit_action_resolution(
+            actions, debug = agent.unit_actions(
                 c.LogicGlobals.player, c.LogicGlobals.opponent
             )
 
@@ -302,7 +302,7 @@ class TestUnitMovement:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -332,7 +332,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -362,7 +362,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -391,7 +391,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -427,7 +427,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -461,7 +461,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -498,7 +498,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -535,7 +535,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -594,7 +594,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -628,7 +628,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -668,7 +668,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -704,7 +704,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -740,7 +740,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -781,7 +781,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -817,7 +817,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
@@ -853,7 +853,7 @@ class TestUnitCollisions:
         for unit in c.LogicGlobals.player.units:
             unit.set_task(*unit_actions_this_turn[unit.id])
 
-        actions, debug = agent.unit_action_resolution(
+        actions, debug = agent.unit_actions(
             c.LogicGlobals.player, c.LogicGlobals.opponent
         )
 
