@@ -158,7 +158,7 @@ def gather_turn_information(player, opponent):
     return blocked_positions, enemy_blocked_positions
 
 
-def unit_action_resolution(player, opponent):
+def unit_actions(player, opponent):
     actions = []
     blocked_positions, enemy_blocked_positions = gather_turn_information(player, opponent)
 
@@ -254,7 +254,7 @@ def agent(observation, configuration, include_debug_for_vis=True):
     update_logic_globals(LogicGlobals.player)
 
     # actions, debug_info = old_unit_action_resolution(player, opponent)
-    actions, debug_info = unit_action_resolution(LogicGlobals.player, LogicGlobals.opponent)
+    actions, debug_info = unit_actions(LogicGlobals.player, LogicGlobals.opponent)
     actions = city_actions(actions)
     actions = add_annotations(
         actions, LogicGlobals.player, LogicGlobals.game_state.map,
