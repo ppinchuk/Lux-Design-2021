@@ -5,7 +5,7 @@ import sys
 # print("SOME RANDOM NUMBER:", random.random(), file=sys.stderr)
 from lux.constants import ValidActions, log, print, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
 from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy, set_unit_task, set_unit_strategy
-from lux.strategy_utils import move_unit_in_direction, switch_builds_if_needed
+from lux.strategy_utils import move_unit_in_direction, switch_builds_if_needed, select_movement_direction_for_unit
 from collections import deque, Counter, UserDict
 from itertools import chain
 from lux.annotate import add_annotations
@@ -204,55 +204,11 @@ def unit_action_resolution(player, opponent):
         elif action == ValidActions.PILLAGE:
             actions.append(unit.pillage(logs=debug_info))
         elif action == ValidActions.MOVE:
-            if target == unit.pos:
-                continue
-            blocked_positions.discard(unit.pos)
-
-            pos_to_check = {}
-            for direction in ALL_DIRECTIONS:
-                new_pos = unit.pos.translate(direction, 1)
-                # if new_pos in enemy_blocked_positions:
-                #     continue
-                # if new_pos in player.city_pos and LogicGlobals.game_state.turns_until_next_night < 3:
-                #     continue
-                if new_pos in enemy_blocked_positions:
-                    continue
-                if not LogicGlobals.game_state.map.is_within_bounds(new_pos):
-                    continue
-                if new_pos in unit.previous_pos:
-                    continue
-                if LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile is not None and LogicGlobals.game_state.turns_until_next_night <= 1 and LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is None and LogicGlobals.game_state.map.num_adjacent_resources(new_pos, include_center=True, include_wood_that_is_growing=True) == 0:
-                    continue
-                new_pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
-                if new_pos_contains_citytile and unit.should_avoid_citytiles:
-                    tiles_not_blocked = {unit.pos, target}
-                    for p in [unit.pos, target]:
-                        cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
-                        if cell.citytile is not None:
-                            city_id = cell.citytile.cityid
-                            if city_id in LogicGlobals.player.cities:
-                                tiles_not_blocked = tiles_not_blocked | {c.pos for c in LogicGlobals.player.cities[city_id].citytiles}
-                    if new_pos not in tiles_not_blocked and unit.turns_spent_waiting_to_move < 5:
-                        continue
-                pos_to_check[direction] = new_pos
-            if not pos_to_check:
-                unit.turns_spent_waiting_to_move += 1
-                if unit.pos not in player.city_pos:
-                    blocked_positions.add(unit.pos)
-                continue
-            unit.dirs_to_move = unit.pos.sort_directions_by_turn_distance(
-                target, LogicGlobals.game_state.map, cooldown=GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][unit.type_str],
-                pos_to_check=pos_to_check, tolerance=max(0, 2 * unit.turns_spent_waiting_to_move if (unit.current_task and (unit.current_task[0] == ValidActions.MANAGE)) else unit.turns_spent_waiting_to_move - 3),
-                avoid_own_cities=unit.should_avoid_citytiles
+            select_movement_direction_for_unit(
+                unit, target, blocked_positions,
+                enemy_blocked_positions,
+                units_wanting_to_move
             )
-            unit.dirs_to_move = deque((d, pos_to_check[d]) for d in unit.dirs_to_move)
-            if not unit.dirs_to_move:
-                unit.turns_spent_waiting_to_move += 1
-                if unit.pos not in player.city_pos:
-                    blocked_positions.add(unit.pos)
-                continue
-            unit.move_target = target
-            units_wanting_to_move.add(unit)
 
     proposed_positions = dict()
     while any(unit.dirs_to_move for unit in units_wanting_to_move) and (not proposed_positions or any(len(units) > 2 for units in proposed_positions.values())):

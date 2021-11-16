@@ -5,6 +5,7 @@ from itertools import chain
 import getpass
 from .constants import ALL_DIRECTIONS, ResourceTypes, Directions, LogicGlobals, STRATEGY_HYPERPARAMETERS, print, GAME_CONSTANTS, ValidActions
 from .game_map import Position
+from collections import deque
 
 
 def reset_unit_tasks(player):
@@ -255,6 +256,84 @@ def switch_builds_if_needed():
                 # print(f"Switching BUILDER {unit.id} target to {new_target}")
                 unit.remove_next_build_action()
                 unit.set_task(ValidActions.BUILD, new_target)
+
+
+def select_movement_direction_for_unit(unit, target, blocked_positions, enemy_blocked_positions, units_wanting_to_move):
+    if target == unit.pos:
+        return
+    blocked_positions.discard(unit.pos)
+
+    pos_to_check = {}
+    for direction in ALL_DIRECTIONS:
+        new_pos = unit.pos.translate(direction, 1)
+        # if new_pos in enemy_blocked_positions:
+        #     continue
+        # if new_pos in player.city_pos and LogicGlobals.game_state.turns_until_next_night < 3:
+        #     continue
+        if new_pos in enemy_blocked_positions:
+            continue
+        if not LogicGlobals.game_state.map.is_within_bounds(new_pos):
+            continue
+        if new_pos in unit.previous_pos:
+            continue
+        if unit_will_die_after_movement(unit, new_pos):
+            continue
+        if unit_should_avoid_citytile_at_pos(unit, new_pos, target):
+            continue
+        pos_to_check[direction] = new_pos
+
+    if not pos_to_check:
+        unit.turns_spent_waiting_to_move += 1
+        if unit.pos not in LogicGlobals.player.city_pos:
+            blocked_positions.add(unit.pos)
+        return
+
+    unit.dirs_to_move = unit.pos.sort_directions_by_turn_distance(
+        target, LogicGlobals.game_state.map,
+        cooldown=GAME_CONSTANTS['PARAMETERS']['UNIT_ACTION_COOLDOWN'][unit.type_str],
+        pos_to_check=pos_to_check, tolerance=max(0, 2 * unit.turns_spent_waiting_to_move if (unit.current_task and (
+                    unit.current_task[0] == ValidActions.MANAGE)) else unit.turns_spent_waiting_to_move - 3),
+        avoid_own_cities=unit.should_avoid_citytiles
+    )
+    unit.dirs_to_move = deque((d, pos_to_check[d]) for d in unit.dirs_to_move)
+    if not unit.dirs_to_move:
+        unit.turns_spent_waiting_to_move += 1
+        if unit.pos not in LogicGlobals.player.city_pos:
+            blocked_positions.add(unit.pos)
+        return
+    unit.move_target = target
+    units_wanting_to_move.add(unit)
+
+
+def unit_should_avoid_citytile_at_pos(unit, new_pos, target):
+    new_pos_contains_citytile = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is not None
+    if new_pos_contains_citytile and unit.should_avoid_citytiles:
+        tiles_not_blocked = {unit.pos, target}
+        tiles_not_blocked = tiles_not_blocked | find_all_citytiles_for_positions(tiles_not_blocked)
+        return new_pos not in tiles_not_blocked and unit.turns_spent_waiting_to_move < 5
+    return False
+
+
+def find_all_citytiles_for_positions(positions):
+    citytiles = set()
+    for p in positions:
+        cell = LogicGlobals.game_state.map.get_cell_by_pos(p)
+        if cell.citytile is not None:
+            city_id = cell.citytile.cityid
+            if city_id in LogicGlobals.player.cities:
+                citytiles = citytiles | {c.pos for c in LogicGlobals.player.cities[city_id].citytiles}
+
+    return citytiles
+
+
+def unit_will_die_after_movement(unit, new_pos):
+    unit_is_on_city = LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile is not None
+    is_nighttime = LogicGlobals.game_state.turns_until_next_night <= 1
+    target_position_is_not_city = LogicGlobals.game_state.map.get_cell_by_pos(new_pos).citytile is None
+    target_position_is_not_next_to_resources = LogicGlobals.game_state.map.num_adjacent_resources(
+        new_pos, include_center=True, include_wood_that_is_growing=True
+    ) == 0
+    return unit_is_on_city and is_nighttime and target_position_is_not_city and target_position_is_not_next_to_resources
 
 
 def move_unit_in_direction(unit, direction, actions, debug_info, register):
