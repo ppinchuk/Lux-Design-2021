@@ -1,4 +1,5 @@
 import sys
+import math
 import getpass
 from .constants import StrategyTypes, LogicGlobals, ValidActions, STRATEGY_HYPERPARAMETERS, ResourceTypes, print, GAME_CONSTANTS
 from .game_map import Position
