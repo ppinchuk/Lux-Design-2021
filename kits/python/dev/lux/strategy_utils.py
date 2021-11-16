@@ -258,7 +258,7 @@ def switch_builds_if_needed():
                 unit.set_task(ValidActions.BUILD, new_target)
 
 
-def select_movement_direction_for_unit(unit, target, blocked_positions, enemy_blocked_positions, units_wanting_to_move):
+def select_movement_direction_for_unit(unit, target, blocked_positions, enemy_blocked_positions, register):
     if target == unit.pos:
         return
     blocked_positions.discard(unit.pos)
@@ -302,7 +302,7 @@ def select_movement_direction_for_unit(unit, target, blocked_positions, enemy_bl
             blocked_positions.add(unit.pos)
         return
     unit.move_target = target
-    units_wanting_to_move.add(unit)
+    register.add(unit)
 
 
 def unit_should_avoid_citytile_at_pos(unit, new_pos, target):
@@ -340,6 +340,106 @@ def move_unit_in_direction(unit, direction, actions, debug_info, register):
     unit.turns_spent_waiting_to_move = 0
     actions.append(unit.move(direction, logs=debug_info))
     register.add(unit)
+
+
+def resolve_unit_movement(player, units_wanting_to_move, blocked_positions, actions, debug_info):
+    proposed_positions = dict()
+    while any(unit.dirs_to_move for unit in units_wanting_to_move) and (not proposed_positions or any(len(units) > 2 for units in proposed_positions.values())):
+        units_with_movement_resolved = set()
+        for unit in units_wanting_to_move:
+            if not proposed_positions or not any(
+                    unit.id in [u[0].id for u in units] for units in proposed_positions.values()):
+                if not unit.dirs_to_move:
+                    units_with_movement_resolved.add(unit)
+                    unit.turns_spent_waiting_to_move += 1
+                    if unit.pos not in player.city_pos:
+                        blocked_positions.add(unit.pos)
+                    continue
+                dir_to_move, new_pos = unit.dirs_to_move.popleft()
+                proposed_positions.setdefault(new_pos, []).append((unit, dir_to_move))
+
+        pos_to_discard = []
+        for pos, units in sorted(proposed_positions.items(), key=lambda tup: (-len(tup[1]), tup[0].x, tup[0].y)):
+            # for pos, units in proposed_positions.items():
+            if pos in blocked_positions:
+                pos_to_discard.append(pos)
+                continue
+            if pos in player.city_pos:
+                for unit, direction in units:
+                    move_unit_in_direction(
+                        unit, direction, actions, debug_info,
+                        register=units_with_movement_resolved
+                    )
+                pos_to_discard.append(pos)
+            elif len(units) > 1:
+                unit, direction = max(
+                    units,
+                    key=lambda pair: (
+                        pair[0].pos in proposed_positions and any(
+                            u[0].pos == pos for u in proposed_positions[pair[0].pos]),
+                        not pos == pair[0].move_target,
+                        pair[0].turns_spent_waiting_to_move,
+                        pair[0].is_building(),
+                        pair[0].id if getpass.getuser() == 'Paul' else 0
+                    )
+                )
+                move_unit_in_direction(
+                    unit, direction, actions, debug_info,
+                    register=units_with_movement_resolved
+                )
+                blocked_positions.add(pos)
+                pos_to_discard.append(pos)
+
+        for pos in pos_to_discard:
+            proposed_positions.pop(pos)
+
+        units_wanting_to_move = units_wanting_to_move - units_with_movement_resolved
+
+    units_with_movement_resolved = set()
+    for unit in units_wanting_to_move:
+        if not proposed_positions or not any(
+                unit.id in [u[0].id for u in units] for units in proposed_positions.values()):
+            if not unit.dirs_to_move:
+                units_with_movement_resolved.add(unit)
+                unit.turns_spent_waiting_to_move += 1
+                if unit.pos not in player.city_pos:
+                    blocked_positions.add(unit.pos)
+                continue
+            dir_to_move, new_pos = unit.dirs_to_move.popleft()
+            proposed_positions.setdefault(new_pos, []).append((unit, dir_to_move))
+
+    for pos, units in proposed_positions.items():
+        if pos in blocked_positions:
+            continue
+        if pos in player.city_pos:
+            for unit, direction in units:
+                move_unit_in_direction(
+                    unit, direction, actions, debug_info,
+                    register=units_with_movement_resolved
+                )
+        else:
+            unit, direction = max(
+                units,
+                key=lambda pair: (
+                    pair[0].pos in proposed_positions and any(u[0].pos == pos for u in proposed_positions[pair[0].pos]),
+                    not pos == pair[0].move_target,
+                    pair[0].turns_spent_waiting_to_move,
+                    pair[0].is_building(),
+                    pair[0].id if getpass.getuser() == 'Paul' else 0
+                )
+            )
+            move_unit_in_direction(
+                unit, direction, actions, debug_info,
+                register=units_with_movement_resolved
+            )
+            blocked_positions.add(pos)
+
+    units_wanting_to_move = units_wanting_to_move - units_with_movement_resolved
+
+    for unit in units_wanting_to_move:
+        unit.turns_spent_waiting_to_move += 1
+
+    return actions, debug_info
 
 
 def compute_tbs_com(game_map):
