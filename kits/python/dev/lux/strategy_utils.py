@@ -333,7 +333,7 @@ def unit_will_die_after_movement(unit, new_pos):
     target_position_is_not_next_to_resources = LogicGlobals.game_state.map.num_adjacent_resources(
         new_pos, include_center=True, include_wood_that_is_growing=True
     ) == 0
-    return unit_is_on_city and is_nighttime and target_position_is_not_city and target_position_is_not_next_to_resources
+    return unit_is_on_city and is_nighttime and target_position_is_not_city and (unit.is_cart() or target_position_is_not_next_to_resources)
 
 
 def move_unit_in_direction(unit, direction, actions, debug_info, register):
