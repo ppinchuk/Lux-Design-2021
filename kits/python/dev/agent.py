@@ -4,98 +4,19 @@ import lux.game_objects as go
 import sys
 # print("SOME RANDOM NUMBER:", random.random(), file=sys.stderr)
 from lux.constants import ValidActions, log, print, StrategyTypes, LogicGlobals, ALL_DIRECTIONS, ResourceTypes, STRATEGY_HYPERPARAMETERS, GAME_CONSTANTS
-from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy
+from lux.strategies import starter_strategy, time_based_strategy, research_based_strategy, set_unit_task, set_unit_strategy
 from lux.strategy_utils import compute_tbs_com, update_spawn_to_research_ratio, update_builder_to_manager_ratio
 from collections import deque, Counter, UserDict
 from itertools import chain
-from lux import annotate
+from lux.annotate import add_annotations
 from random import seed
 import getpass
 import math
 
 seed(69420)
 
-### Define helper functions
 
-
-def set_unit_task(unit, player):
-    max_turn = STRATEGY_HYPERPARAMETERS[f"END_GAME_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
-    if LogicGlobals.game_state.turn >= max_turn:
-        if player.research_points < GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]:
-            time_based_strategy(unit, player)
-        else:
-            research_based_strategy(unit, player)
-    else:
-        starter_strategy(unit, player)
-
-    # if player.researched_coal():
-    #     research_based_strategy(unit, player)
-    # else:
-    #     starter_strategy(unit, player)
-    # if LogicGlobals.game_state.turn < 200:
-    #     starter_strategy(unit, player)
-    # else:
-    #     time_based_strategy(unit, player)
-
-
-def set_unit_strategy(player):
-    return
-    max_turn = STRATEGY_HYPERPARAMETERS[
-        f"END_GAME_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
-    if player.current_strategy != StrategyTypes.STARTER or (LogicGlobals.game_state.turn >= max_turn and len(player.units) >= 2):
-        if player.researched_coal():
-            if player.current_strategy != StrategyTypes.RESEARCH_BASED:
-                player.current_strategy = StrategyTypes.RESEARCH_BASED
-        else:
-            if player.current_strategy != StrategyTypes.TIME_BASED:
-                player.current_strategy = StrategyTypes.TIME_BASED
-                if LogicGlobals.TBS_COM is None:
-                    LogicGlobals.TBS_COM = compute_tbs_com(LogicGlobals.game_state.map)
-                    print(f"New TBS COM is: {LogicGlobals.TBS_COM}")
-        NEW_STRATEGY_UNITS = {
-            u.id for u in player.units if u.current_strategy != StrategyTypes.STARTER
-        }
-        cutoff = STRATEGY_HYPERPARAMETERS[f'QUADRATIC_CUTOFF_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}']
-        if LogicGlobals.game_state.turn <= cutoff:
-            num_starter = max(0, math.ceil(((LogicGlobals.game_state.turn - cutoff) / cutoff) ** 2 * (len(player.units) - 2)))
-        else:
-            num_starter = 0
-        num_new_strat = len(player.units) - num_starter  # TODO: THIS BREAKS IF PLAYER HAS CARTS?
-        print("NUMBER OF STARTER UNITS:", num_starter, "NUMBER OF TIME BASED UNITS:", num_new_strat, "LENGTH OF already time-based:", len(NEW_STRATEGY_UNITS))
-        if num_new_strat > len(NEW_STRATEGY_UNITS):
-            if player.researched_coal():
-                closest_units = [u for u in player.units if u.current_strategy == StrategyTypes.STARTER]
-                # print(closest_units)
-                for unit in closest_units[:len(NEW_STRATEGY_UNITS) - num_new_strat]:
-                    # unit.current_strategy = StrategyTypes.TIME_BASED
-                    if unit.current_strategy != StrategyTypes.RESEARCH_BASED:
-                        unit.current_strategy = StrategyTypes.RESEARCH_BASED
-                        unit.reset()  # TODO: CHECK FOR THINGS THAT THE UNIT IS BUILDING AND REMOVE THEM?
-                    # UNIT_TASK_FROM_STRATEGY[unit.id] = research_based_strategy
-                    # unit.set_task_from_strategy = types.MethodType(time_based_strategy, unit)
-                    # TIME_BASED_STRATEGY_UNITS.add(unit.ID)
-                return
-            else:
-                closest_units = sorted(
-                    [u for u in player.units if u.current_strategy == StrategyTypes.STARTER], key=lambda u: (u.pos.distance_to(LogicGlobals.TBS_COM),u.id if getpass.getuser() == 'Paul' else 0)
-                )
-                # print(closest_units)
-                for unit in closest_units[:len(NEW_STRATEGY_UNITS) - num_new_strat]:
-                    # unit.current_strategy = StrategyTypes.TIME_BASED
-                    if unit.current_strategy != StrategyTypes.TIME_BASED:
-                        unit.current_strategy = StrategyTypes.TIME_BASED
-                        unit.reset()  # TODO: CHECK FOR THINGS THAT THE UNIT IS BUILDING AND REMOVE THEM?
-                    # UNIT_TASK_FROM_STRATEGY[unit.id] = time_based_strategy
-                    # unit.set_task_from_strategy = types.MethodType(time_based_strategy, unit)
-                    # TIME_BASED_STRATEGY_UNITS.add(unit.ID)
-                return
-
-    # for unit in player.units:
-    #     if unit.current_strategy == StrategyTypes.STARTER:
-    #         UNIT_TASK_FROM_STRATEGY[unit.id] = starter_strategy
-        # unit.set_task_from_strategy = types.MethodType(starter_strategy, unit)
-
-
+# Define helper functions
 def update_logic_globals(player):
     if LogicGlobals.game_state.turn == 0:
         for unit in player.units:
@@ -505,30 +426,16 @@ def unit_action_resolution(player, opponent):
     return actions, debug_info
 
 
-def agent(observation, configuration, include_debug_for_vis=True):
-
-    ### Do not edit ###
-    if observation["step"] == 0:
-        LogicGlobals.game_state = Game(*observation["updates"][:2])
-        LogicGlobals.game_state.update(observation["updates"][2:], observation.player)
-        LogicGlobals.game_state.id = observation.player
-        LogicGlobals.player.current_strategy = StrategyTypes.STARTER
-    else:
-        LogicGlobals.game_state.update(observation["updates"], observation.player)
-
-    ### AI Code goes down here! ###
-    update_logic_globals(LogicGlobals.player)
-
-    # actions, debug_info = old_unit_action_resolution(player, opponent)
-    actions, debug_info = unit_action_resolution(LogicGlobals.player, LogicGlobals.opponent)
-
-    num_ct_can_act_this_turn = sum(city_tile.can_act() for _, city in LogicGlobals.player.cities.items() for city_tile in city.citytiles)
+def city_actions(actions):
+    num_ct_can_act_this_turn = sum(
+        city_tile.can_act() for _, city in LogicGlobals.player.cities.items() for city_tile in city.citytiles)
     spawned_this_round = 0
     for _, city in sorted(LogicGlobals.player.cities.items(), key=lambda pair: -int(pair[0].split("_")[1])):
         for city_tile in city.citytiles:
             if city_tile.can_act():
                 if (len(LogicGlobals.player.units) == 0 or LogicGlobals.player.researched_uranium() or (
-                        spawned_this_round <= num_ct_can_act_this_turn * STRATEGY_HYPERPARAMETERS["STARTER"][f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+                        spawned_this_round <= num_ct_can_act_this_turn * STRATEGY_HYPERPARAMETERS["STARTER"][
+                    f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
                 )) and len(LogicGlobals.player.units) + spawned_this_round < LogicGlobals.player.city_tile_count:
                     if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
                         actions.append(city_tile.build_worker())
@@ -583,116 +490,30 @@ def agent(observation, configuration, include_debug_for_vis=True):
     #                 actions.append(city_tile.research())
     #                 LogicGlobals.player.research_points += 1
 
+    return actions
 
-    # DEBUG STUFF
-    if include_debug_for_vis:
-        actions.append(
-            annotate.sidetext(
-                f"Current Strategy: {LogicGlobals.player.current_strategy}",
-            )
-        )
-        actions.append(
-            annotate.sidetext(
-                f"Found {len(LogicGlobals.game_state.map.resource_clusters)} clusters",
-            )
-        )
-        actions.append(
-            annotate.sidetext(
-                "Cluster - N_resource - N_defend - Score",
-            )
-        )
-        for cluster in sorted(LogicGlobals.game_state.map.resource_clusters, key=lambda c: (c.center_pos.x, c.center_pos.y)):
-            actions.append(
-                annotate.sidetext(
-                    annotate.format_message(f"{cluster.center_pos} - {cluster.total_amount:4d} - {cluster.n_to_block:1d} - {cluster.current_score:0.5f}"),
-                )
-            )
-            # for pos in cluster.resource_positions:
-            #     actions.append(annotate.circle(pos.x, pos.y))
-            # for pos in cluster.pos_to_defend:
-            #     actions.append(annotate.x(pos.x, pos.y))
 
-        # actions.append(annotate.sidetext("STRATEGIES"))
-        # for unit in LogicGlobals.player.units:
-        #     actions.append(
-        #         annotate.sidetext(
-        #             f"{unit.id}: {unit.current_strategy}"
-        #         )
-        #     )
+def agent(observation, configuration, include_debug_for_vis=True):
 
-        actions.append(annotate.sidetext("GOAL TASKS"))
+    ### Do not edit ###
+    if observation["step"] == 0:
+        LogicGlobals.game_state = Game(*observation["updates"][:2])
+        LogicGlobals.game_state.update(observation["updates"][2:], observation.player)
+        LogicGlobals.game_state.id = observation.player
+        LogicGlobals.player.current_strategy = StrategyTypes.STARTER
+    else:
+        LogicGlobals.game_state.update(observation["updates"], observation.player)
 
-        for unit in LogicGlobals.player.units:
-            # if unit.current_task is not None:
-            #     __, target = unit.current_task
-            #     if type(target) is Position:
-            #         actions.append(
-            #             annotate.line(unit.pos.x, unit.pos.y, target.x, target.y)
-            #         )
-            if unit.task_q:
-                actions.append(
-                    annotate.sidetext(
-                        annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
-                    )
-                )
-            else:
-                actions.append(
-                    annotate.sidetext(
-                        f"{unit.id}: None"
-                    )
-                )
+    ### AI Code goes down here! ###
+    update_logic_globals(LogicGlobals.player)
 
-        actions.append(annotate.sidetext("CURRENT TASK"))
-
-        for unit in LogicGlobals.player.units:
-            if unit.current_task is None:
-                actions.append(
-                    annotate.sidetext(
-                        f"{unit.id}: None"
-                    )
-                )
-            else:
-                actions.append(
-                    annotate.sidetext(
-                        annotate.format_message(f"{unit.id}: {unit.current_task[0]} at {unit.current_task[1]} ")
-                    )
-                )
-
-        actions.append(annotate.sidetext("TASK QUEUE"))
-
-        for unit in LogicGlobals.player.units:
-            if unit.task_q:
-                actions.append(
-                    annotate.sidetext(
-                        # annotate.format_message(f"{unit.id}: {unit.task_q[-1][0]} at {unit.task_q[-1][1]} ")
-                        annotate.format_message(
-                            f"{unit.id}: " +
-                            " - ".join(
-                                [f"{t[0]} to {t[1]}"
-                                 if t[0] == 'move' else f"{t[0]} at {t[1]}"
-                                 for t in unit.task_q
-                                 ]
-                            )
-                        )
-                    )
-                )
-            else:
-                actions.append(
-                    annotate.sidetext(
-                        f"{unit.id}: None"
-                    )
-                )
-
-        actions.append(annotate.sidetext("ACTIONS"))
-
-        for uid, action, target in debug_info:
-            actions.append(
-                annotate.sidetext(
-                    annotate.format_message(f"{uid}: {action} with target {target}")
-                )
-            )
-
-        actions.append(annotate.text(15, 15, "A"))
+    # actions, debug_info = old_unit_action_resolution(player, opponent)
+    actions, debug_info = unit_action_resolution(LogicGlobals.player, LogicGlobals.opponent)
+    actions = city_actions(actions)
+    actions = add_annotations(
+        actions, LogicGlobals.player, LogicGlobals.game_state.map,
+        debug_info, include_debug_for_vis
+    )
 
     return actions
 

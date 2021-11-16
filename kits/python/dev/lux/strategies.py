@@ -8,6 +8,84 @@ from .strategy_utils import reset_unit_tasks, city_tile_to_build, compute_tbs_co
 # Prefer 2x2 clusters
 
 
+def set_unit_task(unit, player):
+    max_turn = STRATEGY_HYPERPARAMETERS[f"END_GAME_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+    if LogicGlobals.game_state.turn >= max_turn:
+        if player.research_points < GAME_CONSTANTS["PARAMETERS"]["RESEARCH_REQUIREMENTS"]["COAL"]:
+            time_based_strategy(unit, player)
+        else:
+            research_based_strategy(unit, player)
+    else:
+        starter_strategy(unit, player)
+
+    # if player.researched_coal():
+    #     research_based_strategy(unit, player)
+    # else:
+    #     starter_strategy(unit, player)
+    # if LogicGlobals.game_state.turn < 200:
+    #     starter_strategy(unit, player)
+    # else:
+    #     time_based_strategy(unit, player)
+
+
+def set_unit_strategy(player):
+    return
+    max_turn = STRATEGY_HYPERPARAMETERS[
+        f"END_GAME_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
+    if player.current_strategy != StrategyTypes.STARTER or (LogicGlobals.game_state.turn >= max_turn and len(player.units) >= 2):
+        if player.researched_coal():
+            if player.current_strategy != StrategyTypes.RESEARCH_BASED:
+                player.current_strategy = StrategyTypes.RESEARCH_BASED
+        else:
+            if player.current_strategy != StrategyTypes.TIME_BASED:
+                player.current_strategy = StrategyTypes.TIME_BASED
+                if LogicGlobals.TBS_COM is None:
+                    LogicGlobals.TBS_COM = compute_tbs_com(LogicGlobals.game_state.map)
+                    print(f"New TBS COM is: {LogicGlobals.TBS_COM}")
+        NEW_STRATEGY_UNITS = {
+            u.id for u in player.units if u.current_strategy != StrategyTypes.STARTER
+        }
+        cutoff = STRATEGY_HYPERPARAMETERS[f'QUADRATIC_CUTOFF_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}']
+        if LogicGlobals.game_state.turn <= cutoff:
+            num_starter = max(0, math.ceil(((LogicGlobals.game_state.turn - cutoff) / cutoff) ** 2 * (len(player.units) - 2)))
+        else:
+            num_starter = 0
+        num_new_strat = len(player.units) - num_starter  # TODO: THIS BREAKS IF PLAYER HAS CARTS?
+        print("NUMBER OF STARTER UNITS:", num_starter, "NUMBER OF TIME BASED UNITS:", num_new_strat, "LENGTH OF already time-based:", len(NEW_STRATEGY_UNITS))
+        if num_new_strat > len(NEW_STRATEGY_UNITS):
+            if player.researched_coal():
+                closest_units = [u for u in player.units if u.current_strategy == StrategyTypes.STARTER]
+                # print(closest_units)
+                for unit in closest_units[:len(NEW_STRATEGY_UNITS) - num_new_strat]:
+                    # unit.current_strategy = StrategyTypes.TIME_BASED
+                    if unit.current_strategy != StrategyTypes.RESEARCH_BASED:
+                        unit.current_strategy = StrategyTypes.RESEARCH_BASED
+                        unit.reset()  # TODO: CHECK FOR THINGS THAT THE UNIT IS BUILDING AND REMOVE THEM?
+                    # UNIT_TASK_FROM_STRATEGY[unit.id] = research_based_strategy
+                    # unit.set_task_from_strategy = types.MethodType(time_based_strategy, unit)
+                    # TIME_BASED_STRATEGY_UNITS.add(unit.ID)
+                return
+            else:
+                closest_units = sorted(
+                    [u for u in player.units if u.current_strategy == StrategyTypes.STARTER], key=lambda u: (u.pos.distance_to(LogicGlobals.TBS_COM),u.id if getpass.getuser() == 'Paul' else 0)
+                )
+                # print(closest_units)
+                for unit in closest_units[:len(NEW_STRATEGY_UNITS) - num_new_strat]:
+                    # unit.current_strategy = StrategyTypes.TIME_BASED
+                    if unit.current_strategy != StrategyTypes.TIME_BASED:
+                        unit.current_strategy = StrategyTypes.TIME_BASED
+                        unit.reset()  # TODO: CHECK FOR THINGS THAT THE UNIT IS BUILDING AND REMOVE THEM?
+                    # UNIT_TASK_FROM_STRATEGY[unit.id] = time_based_strategy
+                    # unit.set_task_from_strategy = types.MethodType(time_based_strategy, unit)
+                    # TIME_BASED_STRATEGY_UNITS.add(unit.ID)
+                return
+
+    # for unit in player.units:
+    #     if unit.current_strategy == StrategyTypes.STARTER:
+    #         UNIT_TASK_FROM_STRATEGY[unit.id] = starter_strategy
+        # unit.set_task_from_strategy = types.MethodType(starter_strategy, unit)
+
+
 def starter_strategy(unit, player):
 
     if player.current_strategy != StrategyTypes.STARTER:
