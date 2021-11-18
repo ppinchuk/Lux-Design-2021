@@ -64,15 +64,15 @@ def update_logic_globals(player):
     for k, v in LogicGlobals.CLUSTER_ID_TO_MANAGERS.items():
         LogicGlobals.CLUSTER_ID_TO_MANAGERS[k] = LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(k, set()) & player.unit_ids
 
+    for k, v in LogicGlobals.CLUSTER_ID_TO_CARTS.items():
+        LogicGlobals.CLUSTER_ID_TO_CARTS[k] = LogicGlobals.CLUSTER_ID_TO_CARTS.get(k, set()) & player.unit_ids
+
     # print("Builders:", ", ".join([f"{LogicGlobals.game_state.map.get_cluster_by_id(k)}: {v}" for k, v in LogicGlobals.CLUSTER_ID_TO_BUILDERS.items()]))
     # print("Managers:", ", ".join([f"{LogicGlobals.game_state.map.get_cluster_by_id(k)}: {v}" for k, v in LogicGlobals.CLUSTER_ID_TO_MANAGERS.items()]))
 
-    LogicGlobals.RBS_cluster_carts = {}
     for unit in LogicGlobals.player.units:
-        if unit.is_cart():
-            if unit.id not in go.UNIT_CACHE:
-                unit.cluster_to_defend_id = LogicGlobals.game_state.map.get_cell_by_pos(unit.pos).citytile.cluster_to_defend_id
-            LogicGlobals.RBS_cluster_carts.get(unit.cluster_to_defend_id, set()).add(unit.id)
+        if unit.is_cart() and unit.cluster_to_defend_id is not None:
+            LogicGlobals.CLUSTER_ID_TO_CARTS.setdefault(unit.cluster_to_defend_id, set()).add(unit.id)
 
     # if LogicGlobals.game_state.map.width > 12:
     #     update_builder_to_manager_ratio()
@@ -106,7 +106,7 @@ def gather_turn_information(player, opponent):
     for unit in player.units:
         unit.check_for_task_completion(game_map=LogicGlobals.game_state.map, player=player)
         blocked_positions.add(unit.pos)
-        for task, target in chain([unit.current_task if unit.current_task is not None else (None, None)], unit.task_q):
+        for task, target, *__ in chain([unit.current_task if unit.current_task is not None else (None, None)], unit.task_q):
             if task == ValidActions.BUILD:
                 LogicGlobals.pos_being_built.add(target)
             elif task == ValidActions.MANAGE:
@@ -198,7 +198,7 @@ def unit_actions(player, opponent):
             elif unit.current_strategy == StrategyTypes.RESEARCH_BASED:
                 LogicGlobals.RBS_citytiles.add(unit.pos)
         elif action == ValidActions.TRANSFER:
-            actions.append(unit.transfer(*extra, logs=debug_info))
+            actions.append(unit.transfer(target, *extra, logs=debug_info))
             unit.did_just_transfer = True
         elif action == ValidActions.PILLAGE:
             actions.append(unit.pillage(logs=debug_info))
@@ -218,6 +218,8 @@ def city_actions(actions):
     num_ct_can_act_this_turn = sum(
         city_tile.can_act() for _, city in LogicGlobals.player.cities.items() for city_tile in city.citytiles)
     spawned_this_round = 0
+    clusters_spawned_cart_this_round = set()
+
     for _, city in sorted(LogicGlobals.player.cities.items(), key=lambda pair: -int(pair[0].split("_")[1])):
         for city_tile in city.citytiles:
             if city_tile.can_act():
@@ -226,9 +228,19 @@ def city_actions(actions):
                     f"SPAWN_TO_RESEARCH_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"]
                 )) and len(LogicGlobals.player.units) + spawned_this_round < LogicGlobals.player.city_tile_count:
                     if LogicGlobals.player.current_strategy == StrategyTypes.STARTER:
-                        actions.append(city_tile.build_worker())
-                        spawned_this_round += 1
                         cluster = LogicGlobals.game_state.map.position_to_cluster(city_tile.pos)
+                        if cluster is not None and cluster.id not in clusters_spawned_cart_this_round and cluster.type == ResourceTypes.WOOD and LogicGlobals.unlocked_coal and len(LogicGlobals.CLUSTER_ID_TO_CARTS.get(cluster.id, {})) < 1:
+                            sustainable = cluster.total_amount * (
+                                    len(LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(cluster.id, {}))
+                                    + len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(cluster.id, {}))
+                            ) / (230 * len(city.citytiles)) > 3
+                            city_has_managers = len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(cluster.id, {})) > 0
+                            if sustainable and city_has_managers:
+                                actions.append(city_tile.build_cart())
+                                clusters_spawned_cart_this_round.add(cluster.id)
+                        else:
+                            actions.append(city_tile.build_worker())
+                        spawned_this_round += 1
                         if cluster is not None:
                             cluster.n_workers_spawned += 1
                 else:

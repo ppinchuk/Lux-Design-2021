@@ -97,9 +97,6 @@ def starter_strategy(unit, player):
     if not unit.can_act():
         return
 
-    if unit.is_cart():
-        return
-
     # for __, city in player.cities.items():
     #     if LogicGlobals.unlocked_uranium and ResourceTypes.URANIUM in city.neighbor_resource_types:
     #         if len(city.citytiles) > len(city.managers) and len(city.managers) < city.light_upkeep / (15 * 80) + 1:
@@ -132,6 +129,8 @@ def starter_strategy(unit, player):
 
     if unit.cluster_to_defend_id is None:
         return
+    elif unit.is_cart():
+        LogicGlobals.CLUSTER_ID_TO_CARTS.setdefault(unit.cluster_to_defend_id, set()).add(unit.id)
 
     cluster_has_no_cities = not LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids
     all_cities_can_survive = all(LogicGlobals.player.cities[c_id].can_survive_until_end_of_game for c_id in LogicGlobals.game_state.map.get_cluster_by_id(unit.cluster_to_defend_id).city_ids)
@@ -143,7 +142,7 @@ def starter_strategy(unit, player):
         cluster_has_too_few_builders = num_builders <= max(1, STRATEGY_HYPERPARAMETERS["STARTER"][f"BUILDER_TO_MANAGER_RATIO_{LogicGlobals.game_state.map.width}X{LogicGlobals.game_state.map.height}"] * len(LogicGlobals.CLUSTER_ID_TO_MANAGERS.get(unit.cluster_to_defend_id, set())))
     # unit_is_a_builder = unit.id in LogicGlobals.CLUSTER_ID_TO_BUILDERS.get(unit.cluster_to_defend_id, set())
 
-    if cluster_has_no_cities or all_cities_can_survive or cluster_has_too_few_builders: #  or unit_is_a_builder:
+    if unit.is_worker() and (cluster_has_no_cities or all_cities_can_survive or cluster_has_too_few_builders): #  or unit_is_a_builder:
         # TODO: WHAT IF THERE IS NO MORE WOOD??
         new_city_pos = city_tile_to_build_from_id(
             unit.cluster_to_defend_id,

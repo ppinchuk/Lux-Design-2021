@@ -1,7 +1,7 @@
 from typing import Dict
 from itertools import chain
 from collections import deque
-from .constants import ValidActions, print, log, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS, UnitTypes, LogicGlobals
+from .constants import ValidActions, print, log, UNIT_TYPE_AS_STR, StrategyTypes, GAME_CONSTANTS, STRATEGY_HYPERPARAMETERS, UnitTypes, LogicGlobals, ResourceTypes
 from .game_map import Position
 from .strategies import STRATEGY_FUNCTIONS
 
@@ -149,6 +149,15 @@ class Cargo:
 
     def __repr__(self) -> str:
         return f"Cargo(Wood: {self.wood}, Coal: {self.coal}, Uranium: {self.uranium})"
+
+    def max_resource(self):
+        c = {
+            ResourceTypes.WOOD: self.wood,
+            ResourceTypes.COAL: self.coal,
+            ResourceTypes.URANIUM: self.uranium
+        }
+        r = max(c, key=c.get)
+        return r, c[r]
 
 
 UNIT_CACHE = {}
@@ -312,18 +321,17 @@ class Unit:
         action, target, *extra = self.current_task
 
         if action == ValidActions.TRANSFER:
-            target_id, __, __ = extra
             for unit in player.units:
-                if unit.id == target_id:
+                if unit.id == target:
                     target_pos = unit.pos
-                    self.current_task = (action, target_pos, *extra)
+                    # self.current_task = (action, target_pos, *extra)
                     if not self.pos.is_adjacent(target_pos):
                         self.push_task((ValidActions.MOVE, target_pos))
                         return self.propose_action(player, game_state)
 
         elif action == ValidActions.MANAGE:
             if target in player.cities:
-                if player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, include_wood_that_is_growing=False, check_for_unlock=True) > 0 for p in player.cities[target].resource_positions):  # TODO: This wood check may make the manage role too difficult
+                if self.is_worker() and player.cities[target].resource_positions and any(game_state.map.num_adjacent_resources(p, include_wood_that_is_growing=False, check_for_unlock=True) > 0 for p in player.cities[target].resource_positions):  # TODO: This wood check may make the manage role too difficult
                     print(f"Unit {self.id} can manage at resource positions :", player.cities[target].resource_positions)
                     for target_pos in player.cities[target].resource_positions:
                         if target_pos not in LogicGlobals.player.unit_pos and game_state.map.num_adjacent_resources(target_pos, include_wood_that_is_growing=False, check_for_unlock=True) > 0:  # TODO: This wood check may make the manage role too difficult
@@ -337,6 +345,27 @@ class Unit:
                 [cell.pos for cell in player.cities[target].citytiles],
                 key=lambda p: (self.pos.distance_to(p), LogicGlobals.x_mult * p.x, LogicGlobals.y_mult * p.y)
             )
+
+            if self.is_cart():
+                target_pos = self.pos.find_closest_resource(
+                    LogicGlobals.player, LogicGlobals.game_state.map,
+                    r_type=ResourceTypes.URANIUM if LogicGlobals.unlocked_uranium else ResourceTypes.COAL,
+                    tie_breaker_func=None
+                )
+                if target_pos is None:
+                    print("No more resources!!!")
+                    return None, None
+                # if self.pos.distance_to(target_pos) > self.pos.distance_to(closest_citytile_to_unit) and self.can_make_it_before_nightfall(
+                #         target_pos, LogicGlobals.game_state, mult=1.0, tolerance=0
+                # ):
+                if self.pos.distance_to(target_pos) > self.pos.distance_to(closest_citytile_to_unit):
+                    self.push_task((ValidActions.MOVE, target_pos))
+                    return self.propose_action(player, game_state)
+                elif self.turn_distance_to(closest_citytile_to_unit) + self.cooldown <= LogicGlobals.game_state.turns_until_next_night:
+                    self.push_task((ValidActions.MOVE, closest_citytile_to_unit))
+                    return self.propose_action(player, game_state)
+                else:
+                    return None, None
 
             if not self.has_enough_resources_to_manage_city:
                 # print(f"Manager {self.id} has to go find resources.")
@@ -373,6 +402,16 @@ class Unit:
             #         return self.propose_action(player, game_state)
             #     else:
             #         return None, None
+            carts = LogicGlobals.CLUSTER_ID_TO_CARTS.get(self.cluster_to_defend_id, set())
+            if carts:
+                closest_cart = min(
+                    [LogicGlobals.player.get_unit_by_id(id_) for id_ in carts],
+                    key=lambda c: self.pos.distance_to(c.pos)
+                )
+                resource, amount = self.cargo.max_resource()
+                if self.pos.distance_to(closest_cart.pos) < self.pos.distance_to(closest_citytile_to_unit):
+                    self.push_task((ValidActions.TRANSFER, closest_cart.id, resource, int(amount * 0.9)))
+                    return self.propose_action(player, game_state)
 
             if closest_citytile_to_unit != self.pos and self.can_make_it_to_pos_without_dying(closest_citytile_to_unit, mult=1.1):  # self.can_make_it_before_nightfall(target_pos, game_state, mult=1.1):
                 self.push_task((ValidActions.MOVE, closest_citytile_to_unit))
@@ -554,7 +593,7 @@ class Unit:
             if self.current_task is None:
                 return
 
-        action, target = self.current_task
+        action, target, *extra = self.current_task
         # if action == ValidActions.MOVE:
         #     if (self.task_q and (self.task_q[0][0] in ValidActions.can_be_adjacent()) and self.pos.is_adjacent(target)) or self.pos == target:
         #         self.current_task = None
@@ -599,9 +638,10 @@ class Unit:
                 self.has_colonized = True
         elif action == ValidActions.PILLAGE and game_map.get_cell_by_pos(target).road == 0:
             self.current_task = None
-        elif action == ValidActions.TRANSFER and self.did_just_transfer:
-            self.did_just_transfer = False
-            self.current_task = None
+        elif action == ValidActions.TRANSFER:
+            if self.did_just_transfer or target not in LogicGlobals.player.unit_ids:
+                self.did_just_transfer = False
+                self.current_task = None
         elif action == ValidActions.MANAGE:
             if target in player.city_ids and player.cities[target].can_survive_until_end_of_game:
                 print(f"City {target} can now survive until the end of the game! Manager {self.id} released!")

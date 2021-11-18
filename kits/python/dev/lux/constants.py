@@ -86,7 +86,7 @@ class ValidActions:
         if u_type == UnitTypes.WORKER:
             return {cls.MOVE, cls.TRANSFER, cls.PILLAGE, cls.BUILD, cls.COLLECT, cls.MANAGE}
         elif u_type == UnitTypes.CART:
-            return {cls.MOVE, cls.TRANSFER}
+            return {cls.MOVE, cls.TRANSFER, cls.MANAGE}
         else:
             return set()
 
@@ -117,6 +117,7 @@ class LogicGlobals:
     main_city_close_to_coal = None
     CLUSTER_ID_TO_BUILDERS = {}
     CLUSTER_ID_TO_MANAGERS = {}
+    CLUSTER_ID_TO_CARTS = {}
     RESOURCES_BEING_COLLECTED = {}
     RP_AT_LAST_ADJUSTMENT = 0
     x_mult = 1

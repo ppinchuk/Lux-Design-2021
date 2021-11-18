@@ -48,6 +48,7 @@ class ResourceCluster:
         self.city_ids = set()
         self.sort_position = None
         self.needs_defending_from_opponent = False
+        self.cart_id = None
 
         for pos in positions:
             self._resource_positions[pos] = None
